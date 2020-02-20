@@ -1,8 +1,8 @@
 class WebSocketHandler {
   conn: WebSocket;
 
-  init = () => {
-    this.conn = new WebSocket('ws://127.0.0.1:8080/chat');
+  init = (name: string) => {
+    this.conn = new WebSocket(`ws://127.0.0.1:8080/ws/${name}`);
     this.conn.onopen = () => console.info('Соединение установлено');
     return this.conn;
   };
@@ -32,4 +32,5 @@ class WebSocketHandler {
 
 let webSocketCache: WebSocketHandler = null;
 
-export const getWebSocketHandler = () => webSocketCache || (webSocketCache = new WebSocketHandler());
+export const getWebSocketHandler = () =>
+  webSocketCache || (webSocketCache = new WebSocketHandler());

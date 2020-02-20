@@ -4,18 +4,13 @@ import { getWebSocketHandler } from './ws';
 
 const Login = () => {
   const [name, onChangeName] = useState('');
-  const [email, onChangeEmail] = useState('');
 
   const handleChangeName = (e: ChangeEvent<HTMLInputElement>) => {
     onChangeName(e.target.value);
   };
 
-  const handleChangeEmail = (e: ChangeEvent<HTMLInputElement>) => {
-    onChangeEmail(e.target.value);
-  };
-
   const handleRegister = () => {
-    const instance = getWebSocketHandler().init();
+    const instance = getWebSocketHandler().init(name);
     instance.addEventListener('open', () => {
       history.push('/room');
     });
@@ -25,9 +20,6 @@ const Login = () => {
     <>
       <div>
         Имя: <input value={name} onChange={handleChangeName} />
-      </div>
-      <div>
-        Email: <input value={email} onChange={handleChangeEmail} />
       </div>
       <button onClick={handleRegister}>Войти</button>
     </>
