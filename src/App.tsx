@@ -1,11 +1,15 @@
-import React, { useEffect } from 'react';
-import { getWebSocketHandler } from './ws';
+import React from 'react';
+import { Route, Switch } from 'react-router-dom';
+import { Login } from './Login';
+import { ChatRoom } from './ChatRoom';
 
-function App() {
-  useEffect(() => {
-    getWebSocketHandler();
-  });
-  return <div className='App'></div>;
-}
+const App = () => {
+  return (
+    <Switch>
+      <Route path='/' exact component={Login} />
+      <Route path='/room' component={ChatRoom} />
+    </Switch>
+  );
+};
 
 export default App;
