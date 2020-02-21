@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	addr = "127.0.0.1:8080"
+	addr = "192.168.0.102:8080"
 )
 
 func main() {

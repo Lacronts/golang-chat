@@ -1,68 +1,99 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { getWebSocketHandler } from './ws';
 import { Redirect } from 'react-router-dom';
+import Container from '@material-ui/core/Container';
+import TextField from '@material-ui/core/TextField';
+import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
+import Send from '@material-ui/icons/Send';
+import IconButton from '@material-ui/core/IconButton';
+
+const useStyles = makeStyles((theme: Theme) =>
+  createStyles({
+    wrapper: {
+      position: 'relative',
+      height: '100vh',
+    },
+    messageArea: {
+      position: 'relative',
+      maxHeight: 'calc(100vh - 50px)',
+      overflowY: 'auto',
+    },
+    input: {
+      position: 'absolute',
+      display: 'flex',
+      alignItems: 'center',
+      height: '60px',
+      bottom: '0',
+      width: '100%',
+    },
+  }),
+);
 
 interface IIncomingMessages {
   userName: string;
   body: string;
   timestamp: string;
-}
-interface IState {
-  receivedMessage: IIncomingMessages[];
-  message: string;
+  time: string;
 }
 
-class ChatRoom extends React.Component<any, IState> {
-  state: IState = {
-    receivedMessage: [],
-    message: '',
+const ChatRoom = () => {
+  const [receivedMessage, onChangeReceivedMessage] = useState<IIncomingMessages[]>([]);
+  const [message, onChangeMessage] = useState<string>('');
+  const classes = useStyles();
+
+  useEffect(() => {
+    return () => {
+      getWebSocketHandler().closeConnection();
+    };
+  }, []);
+
+  const handleReceiveMessage = (ev: MessageEvent) => {
+    const newMessages = receivedMessage.concat(JSON.parse(ev.data));
+    onChangeReceivedMessage(newMessages);
   };
 
-  componentDidMount() {
-    getWebSocketHandler().conn?.addEventListener('message', this.handleReceiveMessage);
+  useEffect(() => {
+    getWebSocketHandler().conn?.addEventListener('message', handleReceiveMessage);
+    return () => {
+      getWebSocketHandler().conn?.removeEventListener('message', handleReceiveMessage);
+    };
+  }, [handleReceiveMessage]);
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChangeMessage(e.target.value);
+  };
+
+  const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    getWebSocketHandler().postMessage(message);
+    onChangeMessage('');
+  };
+
+  if (getWebSocketHandler().isClosed()) {
+    return <Redirect to='/' />;
   }
-
-  componentWillMount() {
-    getWebSocketHandler().conn?.removeEventListener('message', this.handleReceiveMessage);
-  }
-
-  componentWillUnmount() {
-    getWebSocketHandler().closeConnection();
-  }
-
-  handleReceiveMessage = (ev: MessageEvent) => {
-    const newMessages = this.state.receivedMessage.concat(JSON.parse(ev.data));
-    this.setState({ receivedMessage: newMessages });
-  };
-
-  handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    this.setState({ message: e.target.value });
-  };
-
-  handleSendMessage = () => {
-    getWebSocketHandler().postMessage(this.state.message);
-    this.setState({ message: '' });
-  };
-
-  render() {
-    if (getWebSocketHandler().isClosed()) {
-      return <Redirect to='/' />;
-    }
-    return (
-      <div>
-        <textarea onChange={this.handleMessageChange} value={this.state.message}></textarea>
-        <button onClick={this.handleSendMessage}>Send message</button>
-        Messages:
-        {this.state.receivedMessage.map(msg => (
-          <div key={msg.timestamp}>
-            <p>From: {msg.userName}</p>
-            <div>Message: {msg.body}</div>
-            <p>Time: {msg.timestamp}</p>
-          </div>
-        ))}
+  return (
+    <Container maxWidth='md'>
+      <div className={classes.wrapper}>
+        <div className={classes.messageArea}>
+          Messages:
+          {receivedMessage.map(msg => (
+            <div key={msg.timestamp}>
+              <p>From: {msg.userName}</p>
+              <div>Message: {msg.body}</div>
+              <p>Time: {msg.time}</p>
+            </div>
+          ))}
+        </div>
+        <form className={classes.input} onSubmit={handleSendMessage}>
+          <TextField onChange={handleMessageChange} value={message} variant='filled' fullWidth autoFocus />
+          <IconButton type='submit'>
+            <Send />
+          </IconButton>
+        </form>
       </div>
-    );
-  }
-}
+    </Container>
+  );
+};
 
 export { ChatRoom };

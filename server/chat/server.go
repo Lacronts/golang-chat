@@ -23,7 +23,14 @@ var upgrader = websocket.Upgrader{
 type TOutgoingMSG struct {
 	UserName  string `json:"userName"`
 	Body      string `json:"body"`
-	Timestamp string `json:"timestamp"`
+	Time      string `json:"time"`
+	TimeStamp int64  `json:"timestamp"`
+}
+
+//TIncomingMSG message for sending
+type TIncomingMSG struct {
+	From string `json:"userName"`
+	Body string `json:"body"`
 }
 
 // TServer - Type for our server.
@@ -31,7 +38,7 @@ type TServer struct {
 	users      map[string]*TUser
 	addUser    chan *TUser
 	remUser    chan *TUser
-	newMessage chan string
+	newMessage chan *TIncomingMSG
 }
 
 //NewServer - creating new webSocket server.
@@ -39,7 +46,7 @@ func NewServer() *TServer {
 	users := make(map[string]*TUser)
 	addUser := make(chan *TUser)
 	removeUser := make(chan *TUser)
-	newMessage := make(chan string)
+	newMessage := make(chan *TIncomingMSG)
 
 	return &TServer{
 		users,
@@ -92,29 +99,30 @@ func (s *TServer) chatHandler(w http.ResponseWriter, req *http.Request) {
 	newUser.Listen()
 }
 
-func (s *TServer) sendAll(msg string) {
-	t := time.Now().Format("2 Jan 2006 15:04")
+func (s *TServer) sendAll(msg *TIncomingMSG) {
+	t := time.Now()
 	outgoungMsg := TOutgoingMSG{
-		UserName:  "",
-		Body:      msg,
-		Timestamp: t,
+		UserName:  msg.From,
+		Body:      msg.Body,
+		Time:      t.Format("2 Jan 2006 15:04"),
+		TimeStamp: t.UnixNano(),
 	}
 	for _, user := range s.users {
-		outgoungMsg.UserName = user.id
 		user.outgoingMessage <- &outgoungMsg
 	}
 }
 
 //ReadIncomingMessage - read new message
-func (s *TServer) ReadIncomingMessage(msg string) {
+func (s *TServer) ReadIncomingMessage(msg *TIncomingMSG) {
 	log.Println("incoming message: ", msg)
 	s.newMessage <- msg
 }
 
 func checkOrigin(req *http.Request) bool {
-	reqOrigin := req.Header.Get("Origin")
-	if reqOrigin == origin {
-		return true
-	}
-	return false
+	return true
+	// reqOrigin := req.Header.Get("Origin")
+	// if reqOrigin == origin {
+	// 	return true
+	// }
+	// return false
 }

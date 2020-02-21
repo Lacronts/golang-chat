@@ -2,7 +2,7 @@ class WebSocketHandler {
   conn: WebSocket;
 
   init = (name: string) => {
-    this.conn = new WebSocket(`ws://127.0.0.1:8080/ws/${name}`);
+    this.conn = new WebSocket(`ws://192.168.0.102:8080/ws/${name}`);
     this.conn.onopen = () => console.info('Соединение установлено');
     return this.conn;
   };

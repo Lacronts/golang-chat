@@ -39,7 +39,7 @@ const SignIn = () => {
     onChangeName(e.target.value);
   };
 
-  const handleRegister = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const instance = getWebSocketHandler().init(name);
     instance.addEventListener('open', () => {
@@ -56,7 +56,7 @@ const SignIn = () => {
         <Typography component='h1' variant='h5'>
           Ваше имя:
         </Typography>
-        <form className={classes.form} noValidate>
+        <form className={classes.form} onSubmit={handleRegister}>
           <TextField
             variant='outlined'
             margin='normal'
@@ -68,7 +68,7 @@ const SignIn = () => {
             value={name}
             onChange={handleChangeName}
           />
-          <Button fullWidth variant='contained' color='primary' className={classes.submit} onClick={handleRegister}>
+          <Button type='submit' fullWidth variant='contained' color='primary' className={classes.submit}>
             Войти
           </Button>
         </form>

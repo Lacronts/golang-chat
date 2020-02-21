@@ -57,9 +57,13 @@ func (u *TUser) ListenRead() {
 
 			if err != nil {
 				u.doneCh <- true
-				log.Println("Error while reading JSON from WS", err)
+				log.Println("Error while reading message", err)
 			} else {
-				u.s.ReadIncomingMessage(string(p))
+				msg := &TIncomingMSG{
+					From: u.id,
+					Body: string(p),
+				}
+				u.s.ReadIncomingMessage(msg)
 			}
 		}
 	}
