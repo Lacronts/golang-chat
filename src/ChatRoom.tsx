@@ -2,19 +2,32 @@ import React from 'react';
 import { getWebSocketHandler } from './ws';
 import { Redirect } from 'react-router-dom';
 
+interface IIncomingMessages {
+  userName: string;
+  body: string;
+  timestamp: string;
+}
 interface IState {
-  receivedMessage: string[];
+  receivedMessage: IIncomingMessages[];
   message: string;
 }
 
 class ChatRoom extends React.Component<any, IState> {
-  state = {
-    receivedMessage: [''],
+  state: IState = {
+    receivedMessage: [],
     message: '',
   };
 
+  componentDidMount() {
+    getWebSocketHandler().conn?.addEventListener('message', this.handleReceiveMessage);
+  }
+
+  componentWillMount() {
+    getWebSocketHandler().conn?.removeEventListener('message', this.handleReceiveMessage);
+  }
+
   handleReceiveMessage = (ev: MessageEvent) => {
-    const newMessages = this.state.receivedMessage.concat(ev.data);
+    const newMessages = this.state.receivedMessage.concat(JSON.parse(ev.data));
     this.setState({ receivedMessage: newMessages });
   };
 
@@ -36,8 +49,12 @@ class ChatRoom extends React.Component<any, IState> {
         <textarea onChange={this.handleMessageChange} value={this.state.message}></textarea>
         <button onClick={this.handleSendMessage}>Send message</button>
         Messages:
-        {this.state.receivedMessage.map((mes, idx) => (
-          <div key={idx}>{mes}</div>
+        {this.state.receivedMessage.map(msg => (
+          <div key={msg.timestamp}>
+            <p>From: {msg.userName}</p>
+            <div>Message: {msg.body}</div>
+            <p>Time: {msg.timestamp}</p>
+          </div>
         ))}
       </div>
     );
