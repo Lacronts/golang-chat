@@ -26,6 +26,10 @@ class ChatRoom extends React.Component<any, IState> {
     getWebSocketHandler().conn?.removeEventListener('message', this.handleReceiveMessage);
   }
 
+  componentWillUnmount() {
+    getWebSocketHandler().closeConnection();
+  }
+
   handleReceiveMessage = (ev: MessageEvent) => {
     const newMessages = this.state.receivedMessage.concat(JSON.parse(ev.data));
     this.setState({ receivedMessage: newMessages });

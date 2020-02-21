@@ -1,4 +1,4 @@
-package main
+package chat
 
 import (
 	"fmt"
@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	addr   = "127.0.0.1:8080"
 	origin = "localhost:3000"
 )
 
@@ -20,13 +19,11 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-//TUser - our user struct
-type TUser struct {
-	id              string
-	conn            *websocket.Conn
-	s               *TServer
-	outgoingMessage chan *TOutgoingMSG
-	doneCh          chan bool
+//TOutgoingMSG message for sending
+type TOutgoingMSG struct {
+	UserName  string `json:"userName"`
+	Body      string `json:"body"`
+	Timestamp string `json:"timestamp"`
 }
 
 // TServer - Type for our server.
@@ -37,26 +34,8 @@ type TServer struct {
 	newMessage chan string
 }
 
-//TOutgoingMSG message for sending
-type TOutgoingMSG struct {
-	UserName  string `json:"userName"`
-	Body      string `json:"body"`
-	Timestamp string `json:"timestamp"`
-}
-
-func main() {
-	server := newServer()
-	router := mux.NewRouter()
-
-	go server.Listen(router)
-
-	err := http.ListenAndServe(addr, router)
-	if err != nil {
-		log.Fatal("ListenAndServe Err: ", err)
-	}
-}
-
-func newServer() *TServer {
+//NewServer - creating new webSocket server.
+func NewServer() *TServer {
 	users := make(map[string]*TUser)
 	addUser := make(chan *TUser)
 	removeUser := make(chan *TUser)
@@ -94,12 +73,6 @@ func (s *TServer) Listen(r *mux.Router) {
 	}
 }
 
-//AddNewUser - adding new user on our server
-func (s *TServer) AddNewUser(u *TUser) {
-	log.Println("Adding user ", u.id)
-	s.addUser <- u
-}
-
 func (s *TServer) chatHandler(w http.ResponseWriter, req *http.Request) {
 	req.Header.Set("Origin", "localhost:3000")
 	upgrader.CheckOrigin = checkOrigin
@@ -132,77 +105,10 @@ func (s *TServer) sendAll(msg string) {
 	}
 }
 
-// Listen - communicate
-func (u *TUser) Listen() {
-	go u.ListenWrite()
-	u.ListenRead()
-}
-
-//ListenWrite - listener for wrinig messages
-func (u *TUser) ListenWrite() {
-	log.Println("...listening to write message")
-
-	for {
-		select {
-		case msg := <-u.outgoingMessage:
-			log.Println("outgoing Message", msg)
-			u.conn.WriteJSON(&msg)
-		case <-u.doneCh:
-			u.s.removeUser(u)
-			u.doneCh <- true
-			return
-		}
-	}
-}
-
-//ListenRead - listener for reading messages
-func (u *TUser) ListenRead() {
-	for {
-		select {
-		case <-u.doneCh:
-			u.s.removeUser(u)
-			u.doneCh <- true
-			return
-		default:
-			_, p, err := u.conn.ReadMessage()
-
-			if err != nil {
-				u.doneCh <- true
-				log.Println("Error while reading JSON from WS", err)
-			} else {
-				u.s.ReadIncomingMessage(string(p))
-			}
-		}
-	}
-}
-
 //ReadIncomingMessage - read new message
 func (s *TServer) ReadIncomingMessage(msg string) {
 	log.Println("incoming message: ", msg)
 	s.newMessage <- msg
-}
-
-// CreateUser - creating new user
-func CreateUser(userID string, conn *websocket.Conn, s *TServer) *TUser {
-	if conn == nil {
-		log.Fatal("connection cannot be nil")
-	}
-	if s == nil {
-		log.Fatal("server cannot be nil")
-	}
-
-	outgoingMessage := make(chan *TOutgoingMSG)
-	doneCh := make(chan bool)
-	log.Printf("user %s created", userID)
-
-	return &TUser{
-		userID, conn, s, outgoingMessage, doneCh,
-	}
-}
-
-func (s *TServer) removeUser(user *TUser) {
-	log.Println("removing user ", user.id)
-	s.remUser <- user
 }
 
 func checkOrigin(req *http.Request) bool {

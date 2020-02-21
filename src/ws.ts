@@ -8,7 +8,7 @@ class WebSocketHandler {
   };
 
   postMessage = (message: string) => {
-    this.conn.send(message);
+    this.conn?.send(message);
   };
 
   isClosed = () => {
@@ -26,11 +26,10 @@ class WebSocketHandler {
   };
 
   closeConnection = () => {
-    this.conn.close();
+    this.conn?.close();
   };
 }
 
 let webSocketCache: WebSocketHandler = null;
 
-export const getWebSocketHandler = () =>
-  webSocketCache || (webSocketCache = new WebSocketHandler());
+export const getWebSocketHandler = () => webSocketCache || (webSocketCache = new WebSocketHandler());

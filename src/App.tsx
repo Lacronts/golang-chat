@@ -1,14 +1,18 @@
 import React from 'react';
 import { Route, Switch } from 'react-router-dom';
-import { Login } from './Login';
-import { ChatRoom } from './ChatRoom';
+import { SignIn } from 'SignIn';
+import { ChatRoom } from 'ChatRoom';
+import CssBaseline from '@material-ui/core/CssBaseline';
 
 const App = () => {
   return (
-    <Switch>
-      <Route path='/' exact component={Login} />
-      <Route path='/room' component={ChatRoom} />
-    </Switch>
+    <>
+      <CssBaseline />
+      <Switch>
+        <Route path='/' exact component={SignIn} />
+        <Route path='/room' component={ChatRoom} />
+      </Switch>
+    </>
   );
 };
 
