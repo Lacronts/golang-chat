@@ -4,7 +4,7 @@ import { SignIn } from 'SignIn';
 import { ChatRoom } from 'ChatRoom';
 import CssBaseline from '@material-ui/core/CssBaseline';
 
-const App = () => {
+const App: React.FunctionComponent = () => {
   return (
     <>
       <CssBaseline />

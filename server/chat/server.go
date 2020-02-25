@@ -25,12 +25,14 @@ type TOutgoingMSG struct {
 	Body      string `json:"body"`
 	Time      string `json:"time"`
 	TimeStamp int64  `json:"timestamp"`
+	UserColor string `json:"userColor"`
 }
 
 //TIncomingMSG message for sending
 type TIncomingMSG struct {
-	From string `json:"userName"`
-	Body string `json:"body"`
+	From      string `json:"userName"`
+	Body      string `json:"body"`
+	UserColor string `json:"userColor"`
 }
 
 // TServer - Type for our server.
@@ -67,8 +69,8 @@ func (s *TServer) Listen(r *mux.Router) {
 	for {
 		select {
 		case user := <-s.addUser:
-			log.Println("added user ", user.id)
 			s.users[user.id] = user
+			log.Println("added user ", user.id)
 			log.Println("now ", len(s.users), " users are connected to chat room")
 		case user := <-s.remUser:
 			delete(s.users, user.id)
@@ -83,20 +85,22 @@ func (s *TServer) Listen(r *mux.Router) {
 func (s *TServer) chatHandler(w http.ResponseWriter, req *http.Request) {
 	req.Header.Set("Origin", "localhost:3000")
 	upgrader.CheckOrigin = checkOrigin
-	conn, err := upgrader.Upgrade(w, req, nil)
 
 	userID := mux.Vars(req)["id"]
+	if _, exist := s.users[userID]; exist {
+		http.Error(w, "user with the same ID already exist", http.StatusBadRequest)
+		return
+	}
 
-	newUser := CreateUser(userID, conn, s)
-
-	s.AddNewUser(newUser)
-
+	conn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Fatal("Cannot create connection: ", err)
 	}
-	fmt.Println("connection created")
 
+	newUser := CreateUser(userID, conn, s)
+	s.AddNewUser(newUser)
 	newUser.Listen()
+	fmt.Println("connection created")
 }
 
 func (s *TServer) sendAll(msg *TIncomingMSG) {
@@ -106,6 +110,7 @@ func (s *TServer) sendAll(msg *TIncomingMSG) {
 		Body:      msg.Body,
 		Time:      t.Format("2 Jan 2006 15:04"),
 		TimeStamp: t.UnixNano(),
+		UserColor: msg.UserColor,
 	}
 	for _, user := range s.users {
 		user.outgoingMessage <- &outgoungMsg

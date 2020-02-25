@@ -12,6 +12,7 @@ type TUser struct {
 	conn            *websocket.Conn
 	s               *TServer
 	outgoingMessage chan *TOutgoingMSG
+	color           string
 	doneCh          chan bool
 }
 
@@ -60,8 +61,9 @@ func (u *TUser) ListenRead() {
 				log.Println("Error while reading message", err)
 			} else {
 				msg := &TIncomingMSG{
-					From: u.id,
-					Body: string(p),
+					From:      u.id,
+					Body:      string(p),
+					UserColor: u.color,
 				}
 				u.s.ReadIncomingMessage(msg)
 			}
@@ -79,11 +81,12 @@ func CreateUser(userID string, conn *websocket.Conn, s *TServer) *TUser {
 	}
 
 	outgoingMessage := make(chan *TOutgoingMSG)
+	color := GetRandomColorInRgb()
 	doneCh := make(chan bool)
 	log.Printf("user %s created", userID)
 
 	return &TUser{
-		userID, conn, s, outgoingMessage, doneCh,
+		userID, conn, s, outgoingMessage, color, doneCh,
 	}
 }
 

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { history } from 'Utils';
 import { getWebSocketHandler } from './ws';
-import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
+import createStyles from '@material-ui/core/styles/createStyles';
+import makeStyles from '@material-ui/core/styles/makeStyles';
+import { Theme } from '@material-ui/core/styles/createMuiTheme';
 import Container from '@material-ui/core/Container';
 import Avatar from '@material-ui/core/Avatar';
 import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
@@ -31,7 +33,7 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 );
 
-const SignIn = () => {
+const SignIn: React.FunctionComponent = () => {
   const [name, onChangeName] = useState('');
   const classes = useStyles();
 

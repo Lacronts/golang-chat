@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getWebSocketHandler } from './ws';
 import { Redirect } from 'react-router-dom';
 import Container from '@material-ui/core/Container';
 import TextField from '@material-ui/core/TextField';
-import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
+import createStyles from '@material-ui/core/styles/createStyles';
+import makeStyles from '@material-ui/core/styles/makeStyles';
+import { Theme } from '@material-ui/core/styles/createMuiTheme';
 import Send from '@material-ui/icons/Send';
 import IconButton from '@material-ui/core/IconButton';
+import Paper from '@material-ui/core/Paper';
+import InputAdornment from '@material-ui/core/InputAdornment';
+import { Message } from 'Message';
+import { IIncomingMessages } from 'Models';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -15,31 +21,33 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     messageArea: {
       position: 'relative',
-      maxHeight: 'calc(100vh - 50px)',
+      maxHeight: 'calc(100vh - 56px)',
       overflowY: 'auto',
+      padding: `0 ${theme.spacing(2)}px`,
     },
-    input: {
+    messageInput: {
       position: 'absolute',
-      display: 'flex',
-      alignItems: 'center',
-      height: '60px',
       bottom: '0',
       width: '100%',
+      borderRadius: '0',
+      '& fieldset': {
+        borderRadius: 0,
+        borderLeft: 0,
+        borderRight: 0,
+        borderBottom: 0,
+      },
+    },
+    innerInput: {
+      fontSize: '12px',
     },
   }),
 );
 
-interface IIncomingMessages {
-  userName: string;
-  body: string;
-  timestamp: string;
-  time: string;
-}
-
-const ChatRoom = () => {
+const ChatRoom: React.FunctionComponent = () => {
   const [receivedMessage, onChangeReceivedMessage] = useState<IIncomingMessages[]>([]);
   const [message, onChangeMessage] = useState<string>('');
   const classes = useStyles();
+  const messageAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => {
@@ -47,10 +55,13 @@ const ChatRoom = () => {
     };
   }, []);
 
-  const handleReceiveMessage = (ev: MessageEvent) => {
-    const newMessages = receivedMessage.concat(JSON.parse(ev.data));
-    onChangeReceivedMessage(newMessages);
-  };
+  const handleReceiveMessage = useCallback(
+    (ev: MessageEvent) => {
+      const newMessages = receivedMessage.concat(JSON.parse(ev.data));
+      onChangeReceivedMessage(newMessages);
+    },
+    [receivedMessage],
+  );
 
   useEffect(() => {
     getWebSocketHandler().conn?.addEventListener('message', handleReceiveMessage);
@@ -65,6 +76,7 @@ const ChatRoom = () => {
 
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!message.trim()) return;
     getWebSocketHandler().postMessage(message);
     onChangeMessage('');
   };
@@ -72,26 +84,38 @@ const ChatRoom = () => {
   if (getWebSocketHandler().isClosed()) {
     return <Redirect to='/' />;
   }
+
   return (
-    <Container maxWidth='md'>
-      <div className={classes.wrapper}>
-        <div className={classes.messageArea}>
-          Messages:
+    <Container maxWidth='md' disableGutters>
+      <Paper className={classes.wrapper} elevation={4}>
+        <div className={classes.messageArea} ref={messageAreaRef}>
           {receivedMessage.map(msg => (
-            <div key={msg.timestamp}>
-              <p>From: {msg.userName}</p>
-              <div>Message: {msg.body}</div>
-              <p>Time: {msg.time}</p>
-            </div>
+            <Message key={msg.timestamp} msg={msg} currentUserID={getWebSocketHandler().getUserID()} areaRef={messageAreaRef} />
           ))}
         </div>
-        <form className={classes.input} onSubmit={handleSendMessage}>
-          <TextField onChange={handleMessageChange} value={message} variant='filled' fullWidth autoFocus />
-          <IconButton type='submit'>
-            <Send />
-          </IconButton>
+        <form onSubmit={handleSendMessage}>
+          <TextField
+            className={classes.messageInput}
+            onChange={handleMessageChange}
+            value={message}
+            variant='outlined'
+            fullWidth
+            autoFocus
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position='end'>
+                  <IconButton type='submit' edge='end' color='primary'>
+                    <Send />
+                  </IconButton>
+                </InputAdornment>
+              ),
+              classes: {
+                root: classes.innerInput,
+              },
+            }}
+          />
         </form>
-      </div>
+      </Paper>
     </Container>
   );
 };
