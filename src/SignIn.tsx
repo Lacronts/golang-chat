@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AxiosError } from 'axios';
 import { history } from 'Utils';
 import { getWebSocketHandler } from './ws';
 import createStyles from '@material-ui/core/styles/createStyles';
@@ -10,6 +11,7 @@ import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
 import Typography from '@material-ui/core/Typography';
 import Button from '@material-ui/core/Button';
 import TextField from '@material-ui/core/TextField';
+import { ChatActions } from 'Actions/ChatActions';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -33,8 +35,11 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 );
 
+const chatActions = new ChatActions();
+
 const SignIn: React.FunctionComponent = () => {
   const [name, onChangeName] = useState('');
+  const [err, setErr] = useState<AxiosError>(null);
   const classes = useStyles();
 
   const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,10 +48,15 @@ const SignIn: React.FunctionComponent = () => {
 
   const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const instance = getWebSocketHandler().init(name);
-    instance.addEventListener('open', () => {
-      history.push('/room');
-    });
+    chatActions
+      .checkUserID(name)
+      .then(() => {
+        const instance = getWebSocketHandler().init(name);
+        instance.addEventListener('open', () => {
+          history.push('/room');
+        });
+      })
+      .catch((err: AxiosError) => setErr(err));
   };
 
   return (
@@ -66,6 +76,8 @@ const SignIn: React.FunctionComponent = () => {
             fullWidth
             label='Введите ваше имя'
             name='name'
+            error={!!err}
+            helperText={err?.response.data}
             autoFocus
             value={name}
             onChange={handleChangeName}

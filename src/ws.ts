@@ -4,12 +4,9 @@ class WebSocketHandler {
 
   init = (name: string) => {
     this.conn = new WebSocket(`ws://localhost:8080/ws/${name}`);
-    this.conn.onopen = ev => {
+    this.conn.onopen = () => {
       this.currentUserID = name;
       console.info('connection established');
-    };
-    this.conn.onerror = ev => {
-      console.info(ev);
     };
     return this.conn;
   };

@@ -62,9 +62,9 @@ func NewServer() *TServer {
 func (s *TServer) Listen(r *mux.Router) {
 	fmt.Println("server listening...")
 
-	r.HandleFunc("/ws/{id}", func(w http.ResponseWriter, r *http.Request) {
-		s.chatHandler(w, r)
-	})
+	r.HandleFunc("/ws/{id}", s.chatHandler)
+
+	r.HandleFunc("/auth/{id}", s.checkUserName).Methods("GET")
 
 	for {
 		select {
@@ -82,11 +82,23 @@ func (s *TServer) Listen(r *mux.Router) {
 	}
 }
 
+func (s *TServer) checkUserName(w http.ResponseWriter, res *http.Request) {
+	enableCors(&w)
+	w.Header().Set("Content-Type", "application/json")
+	userID := mux.Vars(res)["id"]
+	if _, exist := s.users[userID]; exist {
+		http.Error(w, "User with the same name already exist", http.StatusBadRequest)
+		return
+	}
+	w.Write([]byte("success"))
+}
+
 func (s *TServer) chatHandler(w http.ResponseWriter, req *http.Request) {
 	req.Header.Set("Origin", "localhost:3000")
 	upgrader.CheckOrigin = checkOrigin
 
 	userID := mux.Vars(req)["id"]
+
 	if _, exist := s.users[userID]; exist {
 		http.Error(w, "user with the same ID already exist", http.StatusBadRequest)
 		return
@@ -130,4 +142,8 @@ func checkOrigin(req *http.Request) bool {
 	// 	return true
 	// }
 	// return false
+}
+
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
