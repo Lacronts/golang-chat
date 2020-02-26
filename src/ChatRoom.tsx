@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getWebSocketHandler } from './ws';
-import { Redirect } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { connect } from 'react-redux';
+import { Dispatch } from 'redux';
 import Container from '@material-ui/core/Container';
 import TextField from '@material-ui/core/TextField';
 import createStyles from '@material-ui/core/styles/createStyles';
@@ -11,7 +11,19 @@ import IconButton from '@material-ui/core/IconButton';
 import Paper from '@material-ui/core/Paper';
 import InputAdornment from '@material-ui/core/InputAdornment';
 import { Message } from 'Message';
-import { IIncomingMessages } from 'Models';
+import { IAppState, IIncomingMessages } from 'Models';
+import { ChatActions } from 'Redux/Actions/ChatActions';
+
+interface IStateProps {
+  userName: string;
+  messages: IIncomingMessages[];
+}
+
+interface IDispatchProps {
+  chatActions: ChatActions;
+}
+
+type TProps = IStateProps & IDispatchProps;
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -43,32 +55,14 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 );
 
-const ChatRoom: React.FunctionComponent = () => {
-  const [receivedMessage, onChangeReceivedMessage] = useState<IIncomingMessages[]>([]);
+const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActions, messages }: TProps) => {
   const [message, onChangeMessage] = useState<string>('');
   const classes = useStyles();
   const messageAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    return () => {
-      getWebSocketHandler().closeConnection();
-    };
-  }, []);
-
-  const handleReceiveMessage = useCallback(
-    (ev: MessageEvent) => {
-      const newMessages = receivedMessage.concat(JSON.parse(ev.data));
-      onChangeReceivedMessage(newMessages);
-    },
-    [receivedMessage],
-  );
-
-  useEffect(() => {
-    getWebSocketHandler().conn?.addEventListener('message', handleReceiveMessage);
-    return () => {
-      getWebSocketHandler().conn?.removeEventListener('message', handleReceiveMessage);
-    };
-  }, [handleReceiveMessage]);
+    return () => chatActions.closeConnection();
+  }, [chatActions]);
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChangeMessage(e.target.value);
@@ -77,20 +71,16 @@ const ChatRoom: React.FunctionComponent = () => {
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!message.trim()) return;
-    getWebSocketHandler().postMessage(message);
+    chatActions.postMessage(message);
     onChangeMessage('');
   };
-
-  if (getWebSocketHandler().isClosed()) {
-    return <Redirect to='/' />;
-  }
 
   return (
     <Container maxWidth='md' disableGutters>
       <Paper className={classes.wrapper} elevation={4}>
         <div className={classes.messageArea} ref={messageAreaRef}>
-          {receivedMessage.map(msg => (
-            <Message key={msg.timestamp} msg={msg} currentUserID={getWebSocketHandler().getUserID()} areaRef={messageAreaRef} />
+          {messages.map(msg => (
+            <Message key={msg.timestamp} msg={msg} currentUserID={userName} areaRef={messageAreaRef} />
           ))}
         </div>
         <form onSubmit={handleSendMessage}>
@@ -120,4 +110,15 @@ const ChatRoom: React.FunctionComponent = () => {
   );
 };
 
-export { ChatRoom };
+const mapStateToProps = ({ chat: { userName, messages } }: IAppState): IStateProps => {
+  return {
+    userName,
+    messages,
+  };
+};
+
+const mapDispatchToProps = (dispatch: Dispatch) => ({
+  chatActions: new ChatActions(dispatch),
+});
+
+export const ChatRoom = connect<IStateProps, IDispatchProps, {}, IAppState>(mapStateToProps, mapDispatchToProps)(ChatRoomComponent);

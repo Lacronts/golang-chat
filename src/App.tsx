@@ -1,17 +1,12 @@
 import React from 'react';
-import { Route, Switch } from 'react-router-dom';
-import { SignIn } from 'SignIn';
-import { ChatRoom } from 'ChatRoom';
 import CssBaseline from '@material-ui/core/CssBaseline';
+import { RouteListener } from 'Router/RouteListener';
 
 const App: React.FunctionComponent = () => {
   return (
     <>
       <CssBaseline />
-      <Switch>
-        <Route path='/' exact component={SignIn} />
-        <Route path='/room' component={ChatRoom} />
-      </Switch>
+      <RouteListener />
     </>
   );
 };

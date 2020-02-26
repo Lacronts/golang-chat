@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { AxiosError } from 'axios';
-import { history } from 'Utils';
-import { getWebSocketHandler } from './ws';
+import { Dispatch } from 'redux';
+import { connect } from 'react-redux';
 import createStyles from '@material-ui/core/styles/createStyles';
 import makeStyles from '@material-ui/core/styles/makeStyles';
 import { Theme } from '@material-ui/core/styles/createMuiTheme';
@@ -11,7 +10,19 @@ import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
 import Typography from '@material-ui/core/Typography';
 import Button from '@material-ui/core/Button';
 import TextField from '@material-ui/core/TextField';
-import { ChatActions } from 'Actions/ChatActions';
+import { ChatActions } from 'Redux/Actions/ChatActions';
+import { IAppState } from 'Models';
+import { AxiosError } from 'axios';
+
+interface IDispatchProps {
+  chatActions: ChatActions;
+}
+
+interface IStateProps {
+  signInErrors: AxiosError;
+}
+
+type TProps = IDispatchProps & IStateProps;
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -35,11 +46,8 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 );
 
-const chatActions = new ChatActions();
-
-const SignIn: React.FunctionComponent = () => {
-  const [name, onChangeName] = useState('');
-  const [err, setErr] = useState<AxiosError>(null);
+const SignInComponent: React.FunctionComponent<TProps> = ({ chatActions, signInErrors }: TProps) => {
+  const [name, onChangeName] = useState<string>('');
   const classes = useStyles();
 
   const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,15 +56,7 @@ const SignIn: React.FunctionComponent = () => {
 
   const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    chatActions
-      .checkUserID(name)
-      .then(() => {
-        const instance = getWebSocketHandler().init(name);
-        instance.addEventListener('open', () => {
-          history.push('/room');
-        });
-      })
-      .catch((err: AxiosError) => setErr(err));
+    chatActions.connectToServer(name);
   };
 
   return (
@@ -76,11 +76,12 @@ const SignIn: React.FunctionComponent = () => {
             fullWidth
             label='Введите ваше имя'
             name='name'
-            error={!!err}
-            helperText={err?.response.data}
+            error={!!signInErrors}
+            helperText={signInErrors && (signInErrors.response?.data || signInErrors.message)}
             autoFocus
             value={name}
             onChange={handleChangeName}
+            autoComplete='off'
           />
           <Button type='submit' fullWidth variant='contained' color='primary' className={classes.submit}>
             Войти
@@ -91,4 +92,14 @@ const SignIn: React.FunctionComponent = () => {
   );
 };
 
-export { SignIn };
+const mapStateToProps = ({ chat: { signInErrors } }: IAppState): IStateProps => {
+  return {
+    signInErrors,
+  };
+};
+
+const mapDispatchToProps = (dispatch: Dispatch) => ({
+  chatActions: new ChatActions(dispatch),
+});
+
+export const SignIn = connect<IStateProps, IDispatchProps, {}, IAppState>(mapStateToProps, mapDispatchToProps)(SignInComponent);

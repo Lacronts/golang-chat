@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -41,6 +42,11 @@ type TServer struct {
 	addUser    chan *TUser
 	remUser    chan *TUser
 	newMessage chan *TIncomingMSG
+}
+
+// TResponseName - Type for checkUserName response.
+type TResponseName struct {
+	UserName string `json:"userName"`
 }
 
 //NewServer - creating new webSocket server.
@@ -90,7 +96,10 @@ func (s *TServer) checkUserName(w http.ResponseWriter, res *http.Request) {
 		http.Error(w, "User with the same name already exist", http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte("success"))
+	response := TResponseName{
+		UserName: userID,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (s *TServer) chatHandler(w http.ResponseWriter, req *http.Request) {

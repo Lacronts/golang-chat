@@ -11,7 +11,7 @@ interface IUseStylesProps {
   messageBlockWidth: number;
 }
 
-const WIDTH_FOR_TOGGLE = 150;
+const WIDTH_FOR_TOGGLE_TIME = 250;
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -28,7 +28,7 @@ const useStyles = makeStyles((theme: Theme) =>
       marginLeft: props.isCurrent ? 'auto' : null,
     }),
     withTimeWrapper: (props: IUseStylesProps) => {
-      const isWide = props.messageBlockWidth > WIDTH_FOR_TOGGLE;
+      const isWide = props.messageBlockWidth > WIDTH_FOR_TOGGLE_TIME;
       if (isWide) {
         return null;
       }
