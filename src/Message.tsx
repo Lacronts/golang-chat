@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React from 'react';
 import Paper from '@material-ui/core/Paper';
 import createStyles from '@material-ui/core/styles/createStyles';
 import makeStyles from '@material-ui/core/styles/makeStyles';
@@ -8,14 +8,15 @@ import { IIncomingMessages } from 'Models';
 interface IUseStylesProps {
   userColor: string;
   isCurrent: boolean;
-  messageBlockWidth: number;
+  textLength: number;
 }
 
-const WIDTH_FOR_TOGGLE_TIME = 250;
+const TEXT_LENGTH_FOR_TOGGLE = 30;
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     row: {
+      position: 'relative',
       display: 'flex',
       padding: theme.spacing(1),
     },
@@ -28,7 +29,7 @@ const useStyles = makeStyles((theme: Theme) =>
       marginLeft: props.isCurrent ? 'auto' : null,
     }),
     withTimeWrapper: (props: IUseStylesProps) => {
-      const isWide = props.messageBlockWidth > WIDTH_FOR_TOGGLE_TIME;
+      const isWide = props.textLength > TEXT_LENGTH_FOR_TOGGLE;
       if (isWide) {
         return null;
       }
@@ -56,40 +57,15 @@ const useStyles = makeStyles((theme: Theme) =>
 interface IProps {
   msg: IIncomingMessages;
   currentUserID: string;
-  areaRef: React.MutableRefObject<HTMLDivElement>;
 }
 
-const Message: React.FunctionComponent<IProps> = ({ msg, currentUserID, areaRef }: IProps) => {
-  const [messageBlockWidth, setMessageBlockWidth] = useState<number>(0);
+const Message: React.FunctionComponent<IProps> = ({ msg, currentUserID }: IProps) => {
   const isCurrent = msg.userName === currentUserID;
-  const classes = useStyles({ userColor: msg.userColor, isCurrent, messageBlockWidth });
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    calculateMessageWidth();
-  }, []);
-
-  const refreshScrollPosition = useCallback(() => {
-    const ref = areaRef.current;
-    const areaHeight = ref?.scrollHeight;
-    const screenHeight = ref?.getBoundingClientRect().height;
-    if (areaHeight > screenHeight) {
-      ref.scrollTo({ top: areaHeight });
-    }
-  }, [areaRef]);
-
-  useEffect(() => {
-    refreshScrollPosition();
-  }, [refreshScrollPosition, messageBlockWidth]);
-
-  const calculateMessageWidth = () => {
-    const messageWidth = wrapperRef.current?.getBoundingClientRect().width;
-    setMessageBlockWidth(messageWidth);
-  };
+  let classes = useStyles({ userColor: msg.userColor, isCurrent, textLength: msg.body.length });
 
   return (
     <div className={classes.row}>
-      <Paper elevation={2} className={classes.messageWrapper} ref={wrapperRef}>
+      <Paper elevation={2} className={classes.messageWrapper}>
         <div className={classes.user}>{msg.userName}</div>
         <div className={classes.withTimeWrapper}>
           <div className={classes.message}>{msg.body}</div>

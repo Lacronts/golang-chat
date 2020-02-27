@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
+import throttle from 'lodash-es/throttle';
 import { connect } from 'react-redux';
 import { Dispatch } from 'redux';
 import Container from '@material-ui/core/Container';
@@ -28,18 +29,25 @@ type TProps = IStateProps & IDispatchProps;
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     wrapper: {
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+    },
+    chatWrapper: {
       position: 'relative',
-      height: '100vh',
+      flexGrow: 1,
     },
     messageArea: {
-      position: 'relative',
-      maxHeight: 'calc(100vh - 56px)',
+      position: 'absolute',
+      width: '100%',
+      maxHeight: '100%',
+      height: 'auto',
+      bottom: 0,
       overflowY: 'auto',
+      overflowX: 'hidden',
       padding: `0 ${theme.spacing(2)}px`,
     },
     messageInput: {
-      position: 'absolute',
-      bottom: '0',
       width: '100%',
       borderRadius: '0',
       '& fieldset': {
@@ -57,6 +65,7 @@ const useStyles = makeStyles((theme: Theme) =>
 
 const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActions, messages }: TProps) => {
   const [message, onChangeMessage] = useState<string>('');
+  const [height, setScreenHeight] = useState<number>(window.innerHeight);
   const classes = useStyles();
   const messageAreaRef = useRef<HTMLDivElement>(null);
 
@@ -75,13 +84,37 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
     onChangeMessage('');
   };
 
+  const updateScrollPosition = useCallback(() => {
+    const ref = messageAreaRef.current;
+    const areaHeight = ref?.scrollHeight;
+    const clientHeight = ref?.clientHeight;
+    if (areaHeight > clientHeight) {
+      ref.scrollTop = areaHeight;
+    }
+  }, [messageAreaRef]);
+
+  useEffect(() => {
+    updateScrollPosition();
+  }, [messages, updateScrollPosition]);
+
+  const handleScreenHeight = throttle(() => {
+    setScreenHeight(window.innerHeight);
+  }, 75);
+
+  useEffect(() => {
+    window.addEventListener('resize', handleScreenHeight);
+    return () => window.removeEventListener('resize', handleScreenHeight);
+  }, [handleScreenHeight]);
+
   return (
-    <Container maxWidth='md' disableGutters>
+    <Container maxWidth='md' disableGutters style={{ height }}>
       <Paper className={classes.wrapper} elevation={4}>
-        <div className={classes.messageArea} ref={messageAreaRef}>
-          {messages.map(msg => (
-            <Message key={msg.timestamp} msg={msg} currentUserID={userName} areaRef={messageAreaRef} />
-          ))}
+        <div className={classes.chatWrapper}>
+          <div className={classes.messageArea} ref={messageAreaRef}>
+            {messages.map(msg => (
+              <Message key={msg.timestamp} msg={msg} currentUserID={userName} />
+            ))}
+          </div>
         </div>
         <form onSubmit={handleSendMessage}>
           <TextField
