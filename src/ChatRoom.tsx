@@ -30,7 +30,6 @@ const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     wrapper: {
       display: 'flex',
-      flexDirection: 'column',
       height: '100%',
     },
     chatWrapper: {
@@ -63,20 +62,27 @@ const useStyles = makeStyles((theme: Theme) =>
     innerInput: {
       fontSize: '12px',
     },
+    users: {
+      flexBasis: '300px',
+      borderRightWidth: '2px',
+      borderRightColor: theme.palette.primary.main,
+      borderRightStyle: 'solid',
+    },
+    chat: {
+      display: 'flex',
+      flexGrow: 1,
+      flexDirection: 'column',
+    },
   }),
 );
 
 const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActions, messages }: TProps) => {
   const [message, onChangeMessage] = useState<string>('');
   const [height, setScreenHeight] = useState<number>(window.innerHeight);
-  const [isScrollEnabled, onToggleScroll] = useState(false);
-  const scrollInterval = useRef(null);
+  const [isScrollEnabled, onToggleScroll] = useState<boolean>(false);
+  const scrollInterval = useRef<NodeJS.Timeout>(null);
   const classes = useStyles();
   const messageAreaRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    return () => chatActions.closeConnection();
-  }, [chatActions]);
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChangeMessage(e.target.value);
@@ -111,13 +117,18 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
     }
   }, [messageAreaRef]);
 
+  const handleScreenHeight = throttle(() => {
+    setScreenHeight(window.innerHeight);
+  }, 75);
+
   useEffect(() => {
     updateScrollPosition();
   }, [messages, updateScrollPosition]);
 
-  const handleScreenHeight = throttle(() => {
-    setScreenHeight(window.innerHeight);
-  }, 75);
+  useEffect(() => {
+    chatActions.getActiveUsers();
+    return () => chatActions.closeConnection();
+  }, [chatActions]);
 
   useEffect(() => {
     window.addEventListener('resize', handleScreenHeight);
@@ -125,37 +136,40 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
   }, [handleScreenHeight]);
 
   return (
-    <Container maxWidth='md' disableGutters style={{ height }}>
+    <Container maxWidth='lg' disableGutters style={{ height }}>
       <Paper className={classes.wrapper} elevation={4}>
-        <div className={classes.chatWrapper}>
-          <div className={`${classes.messageArea} ${isScrollEnabled ? '' : 'scroll-disabled'}`} ref={messageAreaRef}>
-            {messages.map(msg => (
-              <Message key={msg.timestamp} msg={msg} currentUserID={userName} />
-            ))}
+        <div className={classes.users}>users</div>
+        <div className={classes.chat}>
+          <div className={classes.chatWrapper}>
+            <div className={`${classes.messageArea} ${isScrollEnabled ? '' : 'scroll-disabled'}`} ref={messageAreaRef}>
+              {messages.map(msg => (
+                <Message key={msg.timestamp} msg={msg} currentUserID={userName} />
+              ))}
+            </div>
           </div>
+          <form onSubmit={handleSendMessage}>
+            <TextField
+              className={classes.messageInput}
+              onChange={handleMessageChange}
+              value={message}
+              variant='outlined'
+              fullWidth
+              autoFocus
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position='end'>
+                    <IconButton type='submit' edge='end' color='primary'>
+                      <Send />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                classes: {
+                  root: classes.innerInput,
+                },
+              }}
+            />
+          </form>
         </div>
-        <form onSubmit={handleSendMessage}>
-          <TextField
-            className={classes.messageInput}
-            onChange={handleMessageChange}
-            value={message}
-            variant='outlined'
-            fullWidth
-            autoFocus
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position='end'>
-                  <IconButton type='submit' edge='end' color='primary'>
-                    <Send />
-                  </IconButton>
-                </InputAdornment>
-              ),
-              classes: {
-                root: classes.innerInput,
-              },
-            }}
-          />
-        </form>
       </Paper>
     </Container>
   );
