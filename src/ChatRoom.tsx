@@ -46,6 +46,9 @@ const useStyles = makeStyles((theme: Theme) =>
       overflowY: 'auto',
       overflowX: 'hidden',
       padding: `0 ${theme.spacing(2)}px`,
+      [`&.scroll-disabled`]: {
+        overflowY: 'hidden',
+      },
     },
     messageInput: {
       width: '100%',
@@ -66,6 +69,8 @@ const useStyles = makeStyles((theme: Theme) =>
 const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActions, messages }: TProps) => {
   const [message, onChangeMessage] = useState<string>('');
   const [height, setScreenHeight] = useState<number>(window.innerHeight);
+  const [isScrollEnabled, onToggleScroll] = useState(false);
+  const scrollInterval = useRef(null);
   const classes = useStyles();
   const messageAreaRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +82,19 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
     onChangeMessage(e.target.value);
   };
 
+  const disableScroll = () => {
+    if (scrollInterval.current) {
+      clearTimeout(scrollInterval.current);
+    }
+    onToggleScroll(false);
+  };
+
+  const enableScroll = () => {
+    scrollInterval.current = setTimeout(() => onToggleScroll(true), 75);
+  };
+
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
+    disableScroll();
     e.preventDefault();
     if (!message.trim()) return;
     chatActions.postMessage(message);
@@ -90,6 +107,7 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
     const clientHeight = ref?.clientHeight;
     if (areaHeight > clientHeight) {
       ref.scrollTop = areaHeight;
+      enableScroll();
     }
   }, [messageAreaRef]);
 
@@ -110,7 +128,7 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
     <Container maxWidth='md' disableGutters style={{ height }}>
       <Paper className={classes.wrapper} elevation={4}>
         <div className={classes.chatWrapper}>
-          <div className={classes.messageArea} ref={messageAreaRef}>
+          <div className={`${classes.messageArea} ${isScrollEnabled ? '' : 'scroll-disabled'}`} ref={messageAreaRef}>
             {messages.map(msg => (
               <Message key={msg.timestamp} msg={msg} currentUserID={userName} />
             ))}
