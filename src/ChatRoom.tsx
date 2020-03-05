@@ -12,12 +12,14 @@ import IconButton from '@material-ui/core/IconButton';
 import Paper from '@material-ui/core/Paper';
 import InputAdornment from '@material-ui/core/InputAdornment';
 import { Message } from 'Message';
-import { IAppState, IIncomingMessages } from 'Models';
+import { IAppState, IUser, IIncomingMessages } from 'Models';
 import { ChatActions } from 'Redux/Actions/ChatActions';
+import { Users } from 'Users';
 
 interface IStateProps {
+  targetUser: string;
   userName: string;
-  messages: IIncomingMessages[];
+  activeUsers: IUser[];
 }
 
 interface IDispatchProps {
@@ -62,27 +64,30 @@ const useStyles = makeStyles((theme: Theme) =>
     innerInput: {
       fontSize: '12px',
     },
-    users: {
-      flexBasis: '300px',
-      borderRightWidth: '2px',
-      borderRightColor: theme.palette.primary.main,
-      borderRightStyle: 'solid',
-    },
     chat: {
       display: 'flex',
       flexGrow: 1,
       flexDirection: 'column',
     },
+    noUserSelected: {
+      flexGrow: 1,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      fontSize: '20px',
+      color: theme.palette.action.disabled,
+    },
   }),
 );
 
-const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActions, messages }: TProps) => {
+const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActions, activeUsers, targetUser }: TProps) => {
   const [message, onChangeMessage] = useState<string>('');
   const [height, setScreenHeight] = useState<number>(window.innerHeight);
   const [isScrollEnabled, onToggleScroll] = useState<boolean>(false);
   const scrollInterval = useRef<NodeJS.Timeout>(null);
   const classes = useStyles();
   const messageAreaRef = useRef<HTMLDivElement>(null);
+  const messages: IIncomingMessages[] = activeUsers.find(el => el.name === targetUser)?.messages ?? [];
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChangeMessage(e.target.value);
@@ -103,7 +108,8 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
     disableScroll();
     e.preventDefault();
     if (!message.trim()) return;
-    chatActions.postMessage(message);
+    const isGroup = activeUsers.find(user => user.name === targetUser)?.isGroup;
+    chatActions.postMessage(targetUser, message, isGroup);
     onChangeMessage('');
   };
 
@@ -126,7 +132,6 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
   }, [messages, updateScrollPosition]);
 
   useEffect(() => {
-    chatActions.getActiveUsers();
     return () => chatActions.closeConnection();
   }, [chatActions]);
 
@@ -138,47 +143,52 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
   return (
     <Container maxWidth='lg' disableGutters style={{ height }}>
       <Paper className={classes.wrapper} elevation={4}>
-        <div className={classes.users}>users</div>
-        <div className={classes.chat}>
-          <div className={classes.chatWrapper}>
-            <div className={`${classes.messageArea} ${isScrollEnabled ? '' : 'scroll-disabled'}`} ref={messageAreaRef}>
-              {messages.map(msg => (
-                <Message key={msg.timestamp} msg={msg} currentUserID={userName} />
-              ))}
+        <Users />
+        {targetUser ? (
+          <div className={classes.chat}>
+            <div className={classes.chatWrapper}>
+              <div className={`${classes.messageArea} ${isScrollEnabled ? '' : 'scroll-disabled'}`} ref={messageAreaRef}>
+                {messages.map(msg => (
+                  <Message key={msg.timestamp} data={msg} currentUserID={userName} />
+                ))}
+              </div>
             </div>
+            <form onSubmit={handleSendMessage}>
+              <TextField
+                className={classes.messageInput}
+                onChange={handleMessageChange}
+                value={message}
+                variant='outlined'
+                fullWidth
+                autoFocus
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position='end'>
+                      <IconButton type='submit' edge='end' color='primary'>
+                        <Send />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                  classes: {
+                    root: classes.innerInput,
+                  },
+                }}
+              />
+            </form>
           </div>
-          <form onSubmit={handleSendMessage}>
-            <TextField
-              className={classes.messageInput}
-              onChange={handleMessageChange}
-              value={message}
-              variant='outlined'
-              fullWidth
-              autoFocus
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position='end'>
-                    <IconButton type='submit' edge='end' color='primary'>
-                      <Send />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                classes: {
-                  root: classes.innerInput,
-                },
-              }}
-            />
-          </form>
-        </div>
+        ) : (
+          <div className={classes.noUserSelected}>User must be selected</div>
+        )}
       </Paper>
     </Container>
   );
 };
 
-const mapStateToProps = ({ chat: { userName, messages } }: IAppState): IStateProps => {
+const mapStateToProps = ({ chat: { userName, activeUsers, targetUser } }: IAppState): IStateProps => {
   return {
+    targetUser,
     userName,
-    messages,
+    activeUsers,
   };
 };
 

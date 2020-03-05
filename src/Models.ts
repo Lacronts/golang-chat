@@ -2,17 +2,43 @@ import { AxiosError } from 'axios';
 import { EConnStatus } from 'Enums';
 
 export interface IIncomingMessages {
-  userName: string;
-  body: string;
+  from: string;
+  message: string;
   timestamp: string;
   time: string;
   userColor: string;
+  groupName: string;
+}
+
+export interface IUser {
+  name: string;
+  color: string;
+  messages: IIncomingMessages[];
+  isGroup: boolean;
+}
+
+interface INewUser {
+  userName: string;
+  color: string;
+}
+
+export interface INewUserResponse {
+  newUser: INewUser;
+}
+
+export interface IAllUsersResponse {
+  users: INewUser[];
+}
+
+export interface INewMessageResponse {
+  msgData: IIncomingMessages;
 }
 
 export interface IChatState {
   userName: string;
+  targetUser: string;
   signInErrors: AxiosError;
-  messages: IIncomingMessages[];
+  activeUsers: IUser[];
 }
 
 export interface IConnectionState {

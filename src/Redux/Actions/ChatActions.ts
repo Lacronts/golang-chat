@@ -1,41 +1,42 @@
 import { Dispatch } from 'redux';
 import { ChatActionTypes } from 'Redux/Actions/ChatActionTypes';
 import { ConnectionActionTypes } from 'Redux/Actions/ConnectionActionTypes';
-import { checkUserID, getUsers } from 'Redux/Services/ChatService';
-import { WebSocketHandler } from '../../ws';
+import { checkUserID } from 'Redux/Services/ChatService';
+import { WSHandler } from 'WSHandlers/WSHandler';
 
 class ChatActions {
-  private webSocketHandler: WebSocketHandler;
+  private WSHandler: WSHandler;
+
   constructor(private dispatch: Dispatch) {
-    this.webSocketHandler = WebSocketHandler.getInstance(dispatch);
+    this.WSHandler = WSHandler.getInstance(dispatch);
   }
 
-  connectToServer = async (name: string) => {
+  connectToRoom = async (name: string) => {
     try {
       const response = await checkUserID(name);
-      await this.webSocketHandler.init(response.data.userName);
-      this.dispatch({ type: ChatActionTypes.SET_CURRENT_USERNAME, payload: name });
+      await this.WSHandler.init(response.data.userName);
+      this.dispatch({ type: ChatActionTypes.SET_CURRENT_USERNAME, payload: response.data.userName });
     } catch (err) {
       this.dispatch({ type: ChatActionTypes.SET_SIGN_IN_ERRORS, payload: err });
     }
   };
 
-  getActiveUsers = async () => {
-    try {
-      const usersJSON = await getUsers();
-      console.log(usersJSON);
-    } catch (err) {
-      console.error(err);
-    }
+  selectTargetUser = (targetUser: string) => {
+    this.dispatch({ type: ChatActionTypes.SELECT_TARGET_USER, payload: targetUser });
   };
 
-  postMessage = (message: string) => {
-    this.webSocketHandler.postMessage(message);
+  postMessage = (target: string, message: string, isGroup: boolean) => {
+    this.WSHandler.postMessage(JSON.stringify({ target, message, isGroup }));
+  };
+
+  resetChatStore = () => {
+    this.dispatch({ type: ChatActionTypes.RESET_CHAT });
   };
 
   closeConnection = () => {
+    this.resetChatStore();
     this.dispatch({ type: ConnectionActionTypes.CLOSE_CONNECTION });
-    this.webSocketHandler.closeConnection();
+    this.WSHandler.closeConnection();
   };
 }
 

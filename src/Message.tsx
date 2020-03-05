@@ -55,21 +55,21 @@ const useStyles = makeStyles((theme: Theme) =>
 );
 
 interface IProps {
-  msg: IIncomingMessages;
+  data: IIncomingMessages;
   currentUserID: string;
 }
 
-const Message: React.FunctionComponent<IProps> = ({ msg, currentUserID }: IProps) => {
-  const isCurrent = msg.userName === currentUserID;
-  let classes = useStyles({ userColor: msg.userColor, isCurrent, textLength: msg.body.length });
+const Message: React.FunctionComponent<IProps> = ({ data, currentUserID }: IProps) => {
+  const isCurrent = data.from === currentUserID;
+  let classes = useStyles({ userColor: data.userColor, isCurrent, textLength: data.message.length });
 
   return (
     <div className={classes.row}>
       <Paper elevation={2} className={classes.messageWrapper}>
-        <div className={classes.user}>{msg.userName}</div>
+        <div className={classes.user}>{data.from}</div>
         <div className={classes.withTimeWrapper}>
-          <div className={classes.message}>{msg.body}</div>
-          <div className={classes.time}>{msg.time.slice(-5)}</div>
+          <div className={classes.message}>{data.message}</div>
+          <div className={classes.time}>{data.time.slice(-5)}</div>
         </div>
       </Paper>
     </div>

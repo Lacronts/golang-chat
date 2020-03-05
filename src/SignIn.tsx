@@ -56,7 +56,7 @@ const SignInComponent: React.FunctionComponent<TProps> = ({ chatActions, signInE
 
   const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    chatActions.connectToServer(name);
+    chatActions.connectToRoom(name);
   };
 
   return (

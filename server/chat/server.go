@@ -22,18 +22,33 @@ var upgrader = websocket.Upgrader{
 
 //TOutgoingMSG message for sending
 type TOutgoingMSG struct {
-	UserName  string `json:"userName"`
-	Body      string `json:"body"`
+	From      string `json:"from"`
+	Message   string `json:"message"`
 	Time      string `json:"time"`
 	TimeStamp int64  `json:"timestamp"`
 	UserColor string `json:"userColor"`
+	GroupName string `json:"groupName"`
+}
+
+//TResponseMessage message for response to client.
+type TResponseMessage struct {
+	MsgData TOutgoingMSG `json:"msgData"`
 }
 
 //TIncomingMSG message for sending
 type TIncomingMSG struct {
-	From      string `json:"userName"`
-	Body      string `json:"body"`
-	UserColor string `json:"userColor"`
+	From      string
+	Target    string
+	Message   string
+	UserColor string
+	GroupName string
+}
+
+//TClientMSG message for sending
+type TClientMSG struct {
+	Target  string `json:"target"`
+	Message string `json:"message"`
+	IsGroup bool   `json:"isGroup"`
 }
 
 // TServer - Type for our server.
@@ -68,23 +83,24 @@ func NewServer() *TServer {
 func (s *TServer) Listen(r *mux.Router) {
 	fmt.Println("server listening...")
 
-	r.HandleFunc("/ws/{id}", s.chatHandler)
+	r.HandleFunc("/in-room/{id}", s.roomHandler).Methods("GET")
 
 	r.HandleFunc("/auth/{id}", s.checkUserName).Methods("GET")
 
 	for {
 		select {
 		case user := <-s.addUser:
+			s.notifyExistingUsersOfNew(user)
 			s.users[user.id] = user
-			log.Println("added user ", user.id)
+			s.notifyNewUserAboutExisting(user)
 			log.Println("now ", len(s.users), " users are connected to chat room")
 		case user := <-s.remUser:
 			delete(s.users, user.id)
+			s.notifyAboutRemUser(user)
 			log.Println("now ", len(s.users), " users are connected to chat room")
 		case msg := <-s.newMessage:
-			s.sendAll(msg)
+			s.send(msg)
 		}
-
 	}
 }
 
@@ -92,6 +108,7 @@ func (s *TServer) checkUserName(w http.ResponseWriter, res *http.Request) {
 	enableCors(&w)
 	w.Header().Set("Content-Type", "application/json")
 	userID := mux.Vars(res)["id"]
+
 	if _, exist := s.users[userID]; exist {
 		http.Error(w, "User with the same name already exist", http.StatusBadRequest)
 		return
@@ -102,8 +119,7 @@ func (s *TServer) checkUserName(w http.ResponseWriter, res *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (s *TServer) chatHandler(w http.ResponseWriter, req *http.Request) {
-	req.Header.Set("Origin", "localhost:3000")
+func (s *TServer) roomHandler(w http.ResponseWriter, req *http.Request) {
 	upgrader.CheckOrigin = checkOrigin
 
 	userID := mux.Vars(req)["id"]
@@ -120,21 +136,24 @@ func (s *TServer) chatHandler(w http.ResponseWriter, req *http.Request) {
 
 	newUser := CreateUser(userID, conn, s)
 	s.AddNewUser(newUser)
+
 	newUser.Listen()
 	fmt.Println("connection created")
 }
 
-func (s *TServer) sendAll(msg *TIncomingMSG) {
-	t := time.Now()
-	outgoungMsg := TOutgoingMSG{
-		UserName:  msg.From,
-		Body:      msg.Body,
-		Time:      t.Format("2 Jan 2006 15:04"),
-		TimeStamp: t.UnixNano(),
-		UserColor: msg.UserColor,
+func (s *TServer) send(msg *TIncomingMSG) {
+	outgoingMessage := createOutgoingMessage(msg)
+	if len(msg.GroupName) > 0 {
+		for _, user := range s.users {
+			user.outgoingMessage <- outgoingMessage
+		}
+		return
 	}
-	for _, user := range s.users {
-		user.outgoingMessage <- &outgoungMsg
+	if target, ok := s.users[msg.Target]; ok {
+		target.outgoingMessage <- outgoingMessage
+	}
+	if user, ok := s.users[msg.From]; ok {
+		user.outgoingMessage <- outgoingMessage
 	}
 }
 
@@ -142,6 +161,56 @@ func (s *TServer) sendAll(msg *TIncomingMSG) {
 func (s *TServer) ReadIncomingMessage(msg *TIncomingMSG) {
 	log.Println("incoming message: ", msg)
 	s.newMessage <- msg
+}
+
+func (s *TServer) notifyExistingUsersOfNew(newUser *TUser) {
+	log.Println("start notify existing users about new user")
+	resp := TUserNotify{
+		UserID: newUser.id,
+		Color:  newUser.color,
+	}
+
+	for _, user := range s.users {
+		user.newUserCh <- &resp
+	}
+}
+
+func (s *TServer) notifyNewUserAboutExisting(newUser *TUser) {
+	log.Println("start notify new users about existing")
+	resp := []TUserNotify(nil)
+
+	for _, user := range s.users {
+		if user.id != newUser.id {
+			resp = append(resp, TUserNotify{
+				UserID: user.id,
+				Color:  user.color,
+			})
+		}
+	}
+
+	newUser.allUsersCh <- &resp
+}
+
+func (s *TServer) notifyAboutRemUser(remUser *TUser) {
+	log.Println("start notifying about removing user")
+	for _, user := range s.users {
+		user.remUserCh <- &remUser.id
+	}
+}
+
+func createOutgoingMessage(msg *TIncomingMSG) *TResponseMessage {
+	t := time.Now()
+	outgoingMsg := TOutgoingMSG{
+		From:      msg.From,
+		Message:   msg.Message,
+		Time:      t.Format("2 Jan 2006 15:04"),
+		TimeStamp: t.UnixNano(),
+		UserColor: msg.UserColor,
+		GroupName: msg.GroupName,
+	}
+	return &TResponseMessage{
+		MsgData: outgoingMsg,
+	}
 }
 
 func checkOrigin(req *http.Request) bool {

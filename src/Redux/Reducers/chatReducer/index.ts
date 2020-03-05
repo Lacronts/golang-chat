@@ -1,12 +1,14 @@
 import { ChatActionTypes } from 'Redux/Actions/ChatActionTypes';
 import { IChatState, IReduxAction } from 'Models';
+import { ETarget } from 'Enums';
 
 const initial = {
   get state(): IChatState {
     return {
       userName: null,
       signInErrors: null,
-      messages: [],
+      activeUsers: [{ name: ETarget.BROADCAST, messages: [], color: '200,200,200', isGroup: true }],
+      targetUser: null,
     };
   },
 };
@@ -25,11 +27,20 @@ const chatReducer = (prevState = initial.state, action: IReduxAction<any>): ICha
         signInErrors: action.payload,
       };
     }
-    case ChatActionTypes.RECEIVE_MESSAGE: {
+    case ChatActionTypes.UPDATE_ACTIVE_USERS: {
       return {
         ...prevState,
-        messages: action.payload,
+        activeUsers: action.payload,
       };
+    }
+    case ChatActionTypes.SELECT_TARGET_USER: {
+      return {
+        ...prevState,
+        targetUser: action.payload,
+      };
+    }
+    case ChatActionTypes.RESET_CHAT: {
+      return initial.state;
     }
     default:
       return prevState;

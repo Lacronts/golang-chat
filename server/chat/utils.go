@@ -16,9 +16,9 @@ type RGBColor struct {
 // GetRandomColorInRgb Returns a random RGBColor
 func GetRandomColorInRgb() string {
 	rand.Seed(time.Now().UnixNano())
-	Red := rand.Intn(155)
-	Green := rand.Intn(55)
-	blue := rand.Intn(155)
+	Red := rand.Intn(200)
+	Green := rand.Intn(200)
+	blue := rand.Intn(200)
 	c := RGBColor{Red, Green, blue}
 	return c.String()
 }
