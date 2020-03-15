@@ -104,7 +104,12 @@ class WSHandler {
 
   public init = (name: string): Promise<WebSocket | ErrorEvent> => {
     return new Promise((resolve, reject) => {
-      this.conn = new WebSocket(`${API_ADDRESS_WS}/in-room/${name}`);
+      const hostName = window.location.hostname;
+      if (hostName.indexOf('heroku') !== -1) {
+        this.conn = new WebSocket(`ws://${hostName}/in-room/${name}`);
+      } else {
+        this.conn = new WebSocket(`${API_ADDRESS_WS}/in-room/${name}`);
+      }
       this.conn.onopen = () => {
         console.info('connection established');
         this.startListening();
