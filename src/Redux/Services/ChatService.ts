@@ -3,11 +3,9 @@ import { API_ADDRESS_HTTP } from './consts';
 
 export function checkUserID(name: string) {
   const hostName = window.location.hostname;
-  let path;
   if (hostName.indexOf('heroku') !== -1) {
-    path = hostName;
+    return axios.get(`https://${hostName}/auth/${name}`);
   } else {
-    path = API_ADDRESS_HTTP;
+    return axios.get(`http://${API_ADDRESS_HTTP}/auth/${name}`);
   }
-  return axios.get(`http://${path}/auth/${name}`);
 }

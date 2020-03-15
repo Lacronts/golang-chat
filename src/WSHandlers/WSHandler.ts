@@ -106,7 +106,7 @@ class WSHandler {
     return new Promise((resolve, reject) => {
       const hostName = window.location.hostname;
       if (hostName.indexOf('heroku') !== -1) {
-        this.conn = new WebSocket(`ws://${hostName}/in-room/${name}`);
+        this.conn = new WebSocket(`wss://${hostName}/in-room/${name}`);
       } else {
         this.conn = new WebSocket(`${API_ADDRESS_WS}/in-room/${name}`);
       }
