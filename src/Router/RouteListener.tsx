@@ -1,7 +1,7 @@
 import React from 'react';
 import { Route, Switch, Redirect, useLocation } from 'react-router-dom';
-import { SignIn } from 'SignIn';
-import { ChatRoom } from 'ChatRoom';
+import { SignIn } from 'Components/SignIn/SignIn';
+import { ChatRoom } from 'Components/ChatRoom/ChatRoom';
 import { ROUTE } from 'Router/RouteConst';
 import { connect } from 'react-redux';
 import { IAppState } from 'Models';

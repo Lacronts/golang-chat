@@ -7,8 +7,9 @@ const initial = {
     return {
       userName: null,
       signInErrors: null,
-      activeUsers: [{ name: ETarget.BROADCAST, messages: [], color: '200,200,200', isGroup: true }],
+      activeUsers: [{ name: ETarget.BROADCAST, messages: [], color: '255,255,255', isGroup: true }],
       targetUser: null,
+      isOpenMenu: false,
     };
   },
 };
@@ -36,7 +37,20 @@ const chatReducer = (prevState = initial.state, action: IReduxAction<any>): ICha
     case ChatActionTypes.SELECT_TARGET_USER: {
       return {
         ...prevState,
-        targetUser: action.payload,
+        targetUser: action.payload.targetUser,
+        activeUsers: action.payload.activeUsers || prevState.activeUsers,
+      };
+    }
+    case ChatActionTypes.OPEN_MENU: {
+      return {
+        ...prevState,
+        isOpenMenu: true,
+      };
+    }
+    case ChatActionTypes.CLOSE_MENU: {
+      return {
+        ...prevState,
+        isOpenMenu: false,
       };
     }
     case ChatActionTypes.RESET_CHAT: {

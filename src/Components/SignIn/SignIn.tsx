@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { Dispatch } from 'redux';
 import { connect } from 'react-redux';
-import createStyles from '@material-ui/core/styles/createStyles';
-import makeStyles from '@material-ui/core/styles/makeStyles';
-import { Theme } from '@material-ui/core/styles/createMuiTheme';
 import Container from '@material-ui/core/Container';
 import Avatar from '@material-ui/core/Avatar';
 import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
@@ -13,6 +10,7 @@ import TextField from '@material-ui/core/TextField';
 import { ChatActions } from 'Redux/Actions/ChatActions';
 import { IAppState } from 'Models';
 import { AxiosError } from 'axios';
+import { useStyles } from './styles';
 
 interface IDispatchProps {
   chatActions: ChatActions;
@@ -23,28 +21,6 @@ interface IStateProps {
 }
 
 type TProps = IDispatchProps & IStateProps;
-
-const useStyles = makeStyles((theme: Theme) =>
-  createStyles({
-    container: {
-      marginTop: theme.spacing(8),
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-    },
-    avatar: {
-      margin: theme.spacing(1),
-      backgroundColor: theme.palette.secondary.main,
-    },
-    form: {
-      width: '100%',
-      marginTop: theme.spacing(1),
-    },
-    submit: {
-      margin: theme.spacing(3, 0, 2),
-    },
-  }),
-);
 
 const SignInComponent: React.FunctionComponent<TProps> = ({ chatActions, signInErrors }: TProps) => {
   const [name, onChangeName] = useState<string>('');
@@ -65,16 +41,18 @@ const SignInComponent: React.FunctionComponent<TProps> = ({ chatActions, signInE
         <Avatar className={classes.avatar}>
           <LockOutlinedIcon />
         </Avatar>
-        <Typography component='h1' variant='h5'>
+        <Typography component='h1' variant='h5' className={classes.title}>
           Ваше имя:
         </Typography>
         <form className={classes.form} onSubmit={handleRegister}>
           <TextField
+            className={classes.nameInput}
             variant='outlined'
             margin='normal'
             required
             fullWidth
             label='Введите ваше имя'
+            placeholder='Ваше имя'
             name='name'
             error={!!signInErrors}
             helperText={signInErrors && (signInErrors.response?.data || signInErrors.message)}
@@ -82,8 +60,21 @@ const SignInComponent: React.FunctionComponent<TProps> = ({ chatActions, signInE
             value={name}
             onChange={handleChangeName}
             autoComplete='off'
+            InputLabelProps={{
+              classes: {
+                root: classes.nameInputLabel,
+                focused: classes.nameInputLabelFocused,
+              },
+            }}
+            InputProps={{
+              classes: {
+                root: classes.innerInput,
+                focused: classes.fieldFocused,
+                notchedOutline: classes.notchedOutline,
+              },
+            }}
           />
-          <Button type='submit' fullWidth variant='contained' color='primary' className={classes.submit}>
+          <Button type='submit' fullWidth variant='contained' className={classes.submit}>
             Войти
           </Button>
         </form>

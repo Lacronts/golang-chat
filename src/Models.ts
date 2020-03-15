@@ -8,6 +8,7 @@ export interface IIncomingMessages {
   time: string;
   userColor: string;
   groupName: string;
+  isUnread: boolean;
 }
 
 export interface IUser {
@@ -39,6 +40,7 @@ export interface IChatState {
   targetUser: string;
   signInErrors: AxiosError;
   activeUsers: IUser[];
+  isOpenMenu: boolean;
 }
 
 export interface IConnectionState {

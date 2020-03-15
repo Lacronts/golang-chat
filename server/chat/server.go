@@ -20,58 +20,27 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-//TOutgoingMSG message for sending
-type TOutgoingMSG struct {
-	From      string `json:"from"`
-	Message   string `json:"message"`
-	Time      string `json:"time"`
-	TimeStamp int64  `json:"timestamp"`
-	UserColor string `json:"userColor"`
-	GroupName string `json:"groupName"`
+// Server - structure of our server.
+type Server struct {
+	users      map[string]*User
+	addUser    chan *User
+	remUser    chan *User
+	newMessage chan *IncomingMSG
 }
 
-//TResponseMessage message for response to client.
-type TResponseMessage struct {
-	MsgData TOutgoingMSG `json:"msgData"`
-}
-
-//TIncomingMSG message for sending
-type TIncomingMSG struct {
-	From      string
-	Target    string
-	Message   string
-	UserColor string
-	GroupName string
-}
-
-//TClientMSG message for sending
-type TClientMSG struct {
-	Target  string `json:"target"`
-	Message string `json:"message"`
-	IsGroup bool   `json:"isGroup"`
-}
-
-// TServer - Type for our server.
-type TServer struct {
-	users      map[string]*TUser
-	addUser    chan *TUser
-	remUser    chan *TUser
-	newMessage chan *TIncomingMSG
-}
-
-// TResponseName - Type for checkUserName response.
-type TResponseName struct {
+// ResponseName - user validation structure.
+type ResponseName struct {
 	UserName string `json:"userName"`
 }
 
 //NewServer - creating new webSocket server.
-func NewServer() *TServer {
-	users := make(map[string]*TUser)
-	addUser := make(chan *TUser)
-	removeUser := make(chan *TUser)
-	newMessage := make(chan *TIncomingMSG)
+func NewServer() *Server {
+	users := make(map[string]*User)
+	addUser := make(chan *User)
+	removeUser := make(chan *User)
+	newMessage := make(chan *IncomingMSG)
 
-	return &TServer{
+	return &Server{
 		users,
 		addUser,
 		removeUser,
@@ -79,8 +48,8 @@ func NewServer() *TServer {
 	}
 }
 
-//Listen Our server listener
-func (s *TServer) Listen(r *mux.Router) {
+//Listen - New Request Listener.
+func (s *Server) Listen(r *mux.Router) {
 	fmt.Println("server listening...")
 
 	r.HandleFunc("/in-room/{id}", s.roomHandler).Methods("GET")
@@ -96,7 +65,7 @@ func (s *TServer) Listen(r *mux.Router) {
 			log.Println("now ", len(s.users), " users are connected to chat room")
 		case user := <-s.remUser:
 			delete(s.users, user.id)
-			s.notifyAboutRemUser(user)
+			s.notifyAboutUserDeletion(user)
 			log.Println("now ", len(s.users), " users are connected to chat room")
 		case msg := <-s.newMessage:
 			s.send(msg)
@@ -104,7 +73,7 @@ func (s *TServer) Listen(r *mux.Router) {
 	}
 }
 
-func (s *TServer) checkUserName(w http.ResponseWriter, res *http.Request) {
+func (s *Server) checkUserName(w http.ResponseWriter, res *http.Request) {
 	enableCors(&w)
 	w.Header().Set("Content-Type", "application/json")
 	userID := mux.Vars(res)["id"]
@@ -113,13 +82,13 @@ func (s *TServer) checkUserName(w http.ResponseWriter, res *http.Request) {
 		http.Error(w, "User with the same name already exist", http.StatusBadRequest)
 		return
 	}
-	response := TResponseName{
+	response := ResponseName{
 		UserName: userID,
 	}
 	json.NewEncoder(w).Encode(response)
 }
 
-func (s *TServer) roomHandler(w http.ResponseWriter, req *http.Request) {
+func (s *Server) roomHandler(w http.ResponseWriter, req *http.Request) {
 	upgrader.CheckOrigin = checkOrigin
 
 	userID := mux.Vars(req)["id"]
@@ -141,7 +110,7 @@ func (s *TServer) roomHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("connection created")
 }
 
-func (s *TServer) send(msg *TIncomingMSG) {
+func (s *Server) send(msg *IncomingMSG) {
 	outgoingMessage := createOutgoingMessage(msg)
 	if len(msg.GroupName) > 0 {
 		for _, user := range s.users {
@@ -152,20 +121,20 @@ func (s *TServer) send(msg *TIncomingMSG) {
 	if target, ok := s.users[msg.Target]; ok {
 		target.outgoingMessage <- outgoingMessage
 	}
-	if user, ok := s.users[msg.From]; ok {
+	if user, ok := s.users[msg.Author]; ok {
 		user.outgoingMessage <- outgoingMessage
 	}
 }
 
-//ReadIncomingMessage - read new message
-func (s *TServer) ReadIncomingMessage(msg *TIncomingMSG) {
+//ReadIncomingMessage - read new message.
+func (s *Server) ReadIncomingMessage(msg *IncomingMSG) {
 	log.Println("incoming message: ", msg)
 	s.newMessage <- msg
 }
 
-func (s *TServer) notifyExistingUsersOfNew(newUser *TUser) {
+func (s *Server) notifyExistingUsersOfNew(newUser *User) {
 	log.Println("start notify existing users about new user")
-	resp := TUserNotify{
+	resp := Notification{
 		UserID: newUser.id,
 		Color:  newUser.color,
 	}
@@ -175,13 +144,13 @@ func (s *TServer) notifyExistingUsersOfNew(newUser *TUser) {
 	}
 }
 
-func (s *TServer) notifyNewUserAboutExisting(newUser *TUser) {
+func (s *Server) notifyNewUserAboutExisting(newUser *User) {
 	log.Println("start notify new users about existing")
-	resp := []TUserNotify(nil)
+	resp := []Notification(nil)
 
 	for _, user := range s.users {
 		if user.id != newUser.id {
-			resp = append(resp, TUserNotify{
+			resp = append(resp, Notification{
 				UserID: user.id,
 				Color:  user.color,
 			})
@@ -191,35 +160,32 @@ func (s *TServer) notifyNewUserAboutExisting(newUser *TUser) {
 	newUser.allUsersCh <- &resp
 }
 
-func (s *TServer) notifyAboutRemUser(remUser *TUser) {
+func (s *Server) notifyAboutUserDeletion(remUser *User) {
 	log.Println("start notifying about removing user")
 	for _, user := range s.users {
 		user.remUserCh <- &remUser.id
 	}
 }
 
-func createOutgoingMessage(msg *TIncomingMSG) *TResponseMessage {
+func createOutgoingMessage(msg *IncomingMSG) *ResponseMsg {
 	t := time.Now()
-	outgoingMsg := TOutgoingMSG{
-		From:      msg.From,
+	outgoingMsg := OutgoingMSG{
+		Author:    msg.Author,
 		Message:   msg.Message,
 		Time:      t.Format("2 Jan 2006 15:04"),
 		TimeStamp: t.UnixNano(),
 		UserColor: msg.UserColor,
 		GroupName: msg.GroupName,
+		IsUnread:  true,
 	}
-	return &TResponseMessage{
-		MsgData: outgoingMsg,
+	return &ResponseMsg{
+		MsgData: &outgoingMsg,
 	}
 }
 
+// fake check origin.
 func checkOrigin(req *http.Request) bool {
 	return true
-	// reqOrigin := req.Header.Get("Origin")
-	// if reqOrigin == origin {
-	// 	return true
-	// }
-	// return false
 }
 
 func enableCors(w *http.ResponseWriter) {

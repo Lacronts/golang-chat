@@ -3,6 +3,7 @@ import { ChatActionTypes } from 'Redux/Actions/ChatActionTypes';
 import { ConnectionActionTypes } from 'Redux/Actions/ConnectionActionTypes';
 import { checkUserID } from 'Redux/Services/ChatService';
 import { WSHandler } from 'WSHandlers/WSHandler';
+import { IAppState } from 'Models';
 
 class ChatActions {
   private WSHandler: WSHandler;
@@ -22,8 +23,19 @@ class ChatActions {
   };
 
   selectTargetUser = (targetUser: string) => {
-    this.dispatch({ type: ChatActionTypes.SELECT_TARGET_USER, payload: targetUser });
+    this.dispatch<any>((_, getState: () => IAppState) => {
+      const { activeUsers } = getState().chat;
+      const newUsers = activeUsers.map(user =>
+        user.name === targetUser ? { ...user, messages: user.messages.map(message => ({ ...message, isUnread: false })) } : user,
+      );
+      this.closeMenu();
+      this.dispatch({ type: ChatActionTypes.SELECT_TARGET_USER, payload: { targetUser, activeUsers: newUsers } });
+    });
   };
+
+  closeMenu = () => this.dispatch({ type: ChatActionTypes.CLOSE_MENU });
+
+  openMenu = () => this.dispatch({ type: ChatActionTypes.OPEN_MENU });
 
   postMessage = (target: string, message: string, isGroup: boolean) => {
     this.WSHandler.postMessage(JSON.stringify({ target, message, isGroup }));

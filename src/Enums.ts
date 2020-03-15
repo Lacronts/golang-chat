@@ -11,5 +11,5 @@ export enum EReceivedDataKey {
 }
 
 export enum ETarget {
-  BROADCAST = 'all',
+  BROADCAST = 'General Chat',
 }

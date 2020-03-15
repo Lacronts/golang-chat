@@ -1,0 +1,11 @@
+.simplebar-scrollbar::before {
+  background: white;
+}
+
+.simplebar-content {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-end;
+  min-height: 100%;
+  margin: 0 8px;
+}

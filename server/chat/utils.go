@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-// RGBColor RBG Color Type
+//RGBColor - RBG Color struct.
 type RGBColor struct {
 	Red   int
 	Green int
 	Blue  int
 }
 
-// GetRandomColorInRgb Returns a random RGBColor
+//GetRandomColorInRgb - Returns a random RGBColor.
 func GetRandomColorInRgb() string {
 	rand.Seed(time.Now().UnixNano())
-	Red := rand.Intn(200)
-	Green := rand.Intn(200)
-	blue := rand.Intn(200)
+	Red := 255 - rand.Intn(100)
+	Green := 255 - rand.Intn(100)
+	blue := 255 - rand.Intn(100)
 	c := RGBColor{Red, Green, blue}
 	return c.String()
 }

@@ -1,9 +1,7 @@
-import React from 'react';
-import Paper from '@material-ui/core/Paper';
 import createStyles from '@material-ui/core/styles/createStyles';
 import makeStyles from '@material-ui/core/styles/makeStyles';
 import { Theme } from '@material-ui/core/styles/createMuiTheme';
-import { IIncomingMessages } from 'Models';
+import { colors } from 'Styles/consts';
 
 interface IUseStylesProps {
   userColor: string;
@@ -13,12 +11,12 @@ interface IUseStylesProps {
 
 const TEXT_LENGTH_FOR_TOGGLE = 30;
 
-const useStyles = makeStyles((theme: Theme) =>
+export const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     row: {
       position: 'relative',
       display: 'flex',
-      padding: theme.spacing(1),
+      padding: theme.spacing(0.5),
     },
     messageWrapper: (props: IUseStylesProps) => ({
       position: 'relative',
@@ -27,6 +25,8 @@ const useStyles = makeStyles((theme: Theme) =>
       borderRadius: '10px',
       maxWidth: '75%',
       marginLeft: props.isCurrent ? 'auto' : null,
+      backgroundColor: props.isCurrent ? colors.active : colors.background.secondary,
+      color: colors.white,
     }),
     withTimeWrapper: (props: IUseStylesProps) => {
       const isWide = props.textLength > TEXT_LENGTH_FOR_TOGGLE;
@@ -37,7 +37,7 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     time: {
       fontSize: '8px',
-      color: theme.palette.grey[500],
+      color: colors.grey,
       paddingLeft: theme.spacing(0.5),
       textAlign: 'right',
     },
@@ -53,27 +53,3 @@ const useStyles = makeStyles((theme: Theme) =>
     },
   }),
 );
-
-interface IProps {
-  data: IIncomingMessages;
-  currentUserID: string;
-}
-
-const Message: React.FunctionComponent<IProps> = ({ data, currentUserID }: IProps) => {
-  const isCurrent = data.from === currentUserID;
-  let classes = useStyles({ userColor: data.userColor, isCurrent, textLength: data.message.length });
-
-  return (
-    <div className={classes.row}>
-      <Paper elevation={2} className={classes.messageWrapper}>
-        <div className={classes.user}>{data.from}</div>
-        <div className={classes.withTimeWrapper}>
-          <div className={classes.message}>{data.message}</div>
-          <div className={classes.time}>{data.time.slice(-5)}</div>
-        </div>
-      </Paper>
-    </div>
-  );
-};
-
-export { Message };
