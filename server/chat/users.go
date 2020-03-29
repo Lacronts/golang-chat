@@ -33,6 +33,7 @@ type User struct {
 	conn            *websocket.Conn
 	s               *Server
 	outgoingMessage chan *ResponseMsg
+	data            chan *ClientMSG
 	newUserCh       chan *Notification
 	remUserCh       chan *string
 	allUsersCh      chan *[]Notification
@@ -58,8 +59,10 @@ func (u *User) ListenWrite() {
 	for {
 		select {
 		case msg := <-u.outgoingMessage:
-			log.Println("outgoing Message", msg)
+			//log.Println("outgoing Message", msg)
 			u.conn.WriteJSON(&msg)
+		case data := <-u.data:
+			u.conn.WriteJSON(&data)
 		case newUser := <-u.newUserCh:
 			newUserResp := NewUserResp{
 				NewUser: newUser,
@@ -98,17 +101,8 @@ func (u *User) ListenRead() {
 				u.doneCh <- true
 				log.Println("Error while reading message", err)
 			} else {
-				message := &IncomingMSG{
-					Author:    u.id,
-					Message:   msg.Message,
-					UserColor: u.color,
-				}
-				if msg.IsGroup {
-					message.GroupName = msg.Target
-				} else {
-					message.Target = msg.Target
-				}
-				u.s.ReadIncomingMessage(message)
+				msg.Author = u.id
+				u.s.ReadIncomingData(&msg)
 			}
 		}
 	}
@@ -124,6 +118,7 @@ func CreateUser(userID string, conn *websocket.Conn, s *Server) *User {
 	}
 
 	outgoingMessage := make(chan *ResponseMsg)
+	data := make(chan *ClientMSG)
 	color := GetRandomColorInRgb()
 	doneCh := make(chan bool)
 	newUserCh := make(chan *Notification)
@@ -132,7 +127,7 @@ func CreateUser(userID string, conn *websocket.Conn, s *Server) *User {
 	log.Printf("user %s created", userID)
 
 	return &User{
-		userID, conn, s, outgoingMessage, newUserCh, remUserCh, allUsersCh, color, doneCh,
+		userID, conn, s, outgoingMessage, data, newUserCh, remUserCh, allUsersCh, color, doneCh,
 	}
 }
 

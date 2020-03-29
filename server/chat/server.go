@@ -20,10 +20,10 @@ var upgrader = websocket.Upgrader{
 
 // Server - structure of our server.
 type Server struct {
-	users      map[string]*User
-	addUser    chan *User
-	remUser    chan *User
-	newMessage chan *IncomingMSG
+	users   map[string]*User
+	addUser chan *User
+	remUser chan *User
+	newData chan *ClientMSG
 }
 
 // ResponseName - user validation structure.
@@ -41,13 +41,13 @@ func NewServer() *Server {
 	users := make(map[string]*User)
 	addUser := make(chan *User)
 	removeUser := make(chan *User)
-	newMessage := make(chan *IncomingMSG)
+	newData := make(chan *ClientMSG)
 
 	return &Server{
 		users,
 		addUser,
 		removeUser,
-		newMessage,
+		newData,
 	}
 }
 
@@ -73,7 +73,7 @@ func (s *Server) Listen(r *mux.Router) {
 			delete(s.users, user.id)
 			s.notifyAboutUserDeletion(user)
 			log.Println("now ", len(s.users), " users are connected to chat room")
-		case msg := <-s.newMessage:
+		case msg := <-s.newData:
 			s.send(msg)
 		}
 	}
@@ -136,26 +136,64 @@ func (s *Server) roomHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("connection created")
 }
 
-func (s *Server) send(msg *IncomingMSG) {
-	outgoingMessage := createOutgoingMessage(msg)
-	if len(msg.GroupName) > 0 {
-		for _, user := range s.users {
-			user.outgoingMessage <- outgoingMessage
+func (s *Server) send(msg *ClientMSG) {
+	switch msg.Type {
+	case "message":
+		{
+			message := &IncomingMSG{
+				Author:  msg.Author,
+				Message: msg.Data.(string),
+			}
+			if msg.IsGroup {
+				message.GroupName = msg.Target
+			} else {
+				message.Target = msg.Target
+			}
+			outgoingMessage := createOutgoingMessage(message)
+			if len(message.GroupName) > 0 {
+				for _, user := range s.users {
+					user.outgoingMessage <- outgoingMessage
+				}
+				return
+			}
+			if target, ok := s.users[msg.Target]; ok {
+				target.outgoingMessage <- outgoingMessage
+			}
+			if user, ok := s.users[msg.Author]; ok {
+				user.outgoingMessage <- outgoingMessage
+			}
 		}
-		return
+
+	case "offer":
+		{
+			s.sendData(msg)
+		}
+	case "answer":
+		{
+			s.sendData(msg)
+		}
+	case "candidate":
+		{
+			s.sendData(msg)
+		}
+	case "cancelCall":
+		{
+			s.sendData(msg)
+		}
 	}
+
+}
+
+func (s *Server) sendData(msg *ClientMSG) {
 	if target, ok := s.users[msg.Target]; ok {
-		target.outgoingMessage <- outgoingMessage
-	}
-	if user, ok := s.users[msg.Author]; ok {
-		user.outgoingMessage <- outgoingMessage
+		target.data <- msg
 	}
 }
 
-//ReadIncomingMessage - read new message.
-func (s *Server) ReadIncomingMessage(msg *IncomingMSG) {
-	log.Println("incoming message: ", msg)
-	s.newMessage <- msg
+//ReadIncomingData - read new data.
+func (s *Server) ReadIncomingData(msg *ClientMSG) {
+	log.Println("incoming message type: ", msg.Type)
+	s.newData <- msg
 }
 
 func (s *Server) notifyExistingUsersOfNew(newUser *User) {

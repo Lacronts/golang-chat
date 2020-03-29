@@ -24,5 +24,10 @@ export const useStyles = makeStyles((theme: Theme) =>
       paddingLeft: '8px',
       transform: 'translateY(2px)',
     },
+    call: {
+      marginLeft: 'auto',
+      color: colors.active,
+      border: colors.active,
+    },
   }),
 );

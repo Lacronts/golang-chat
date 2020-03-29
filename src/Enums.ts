@@ -4,6 +4,10 @@ export enum EConnStatus {
 }
 
 export enum EReceivedDataKey {
+  ANSWER = 'answer',
+  CANDIDATE = 'candidate',
+  OFFER = 'offer',
+  CANCEL_CALL = 'cancelCall',
   MESSAGE = 'msgData',
   NEW_USER_NOTIF = 'newUser',
   REMOVE_USER_NOTIF = 'remUser',
@@ -12,4 +16,9 @@ export enum EReceivedDataKey {
 
 export enum ETarget {
   BROADCAST = 'General Chat',
+}
+
+export enum EReasonDropCall {
+  TIMEOUT,
+  CANCEL,
 }

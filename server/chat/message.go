@@ -27,7 +27,9 @@ type IncomingMSG struct {
 
 //ClientMSG - structure received from the client.
 type ClientMSG struct {
-	Target  string `json:"target"`
-	Message string `json:"message"`
-	IsGroup bool   `json:"isGroup"`
+	Target  string      `json:"target"`
+	Data    interface{} `json:"data"`
+	IsGroup bool        `json:"isGroup"`
+	Type    string      `json:"type"`
+	Author  string      `json:"author"`
 }

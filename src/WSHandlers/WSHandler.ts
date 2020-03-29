@@ -1,13 +1,36 @@
 import { Dispatch } from 'redux';
 import { ChatActionTypes } from 'Redux/Actions/ChatActionTypes';
 import { ConnectionActionTypes } from 'Redux/Actions/ConnectionActionTypes';
-import { IAppState, INewUserResponse, IAllUsersResponse, IIncomingMessages, IUser } from 'Models';
-import { EReceivedDataKey } from 'Enums';
+import { IAppState, INewUserResponse, IAllUsersResponse, IIncomingMessages, IUser, IIncomingData } from 'Models';
+import { EReceivedDataKey, EReasonDropCall } from 'Enums';
 import { API_ADDRESS_WS } from 'Redux/Services/consts';
 import { concatMessages } from 'WSHandlers/Utils';
 
+type TListenType = 'offer' | 'answer';
+
+const configuration: RTCConfiguration = { iceServers: [{ urls: 'stun:stun4.l.google.com:19302' }] };
+
+const trackConstraint: MediaTrackConstraints = { echoCancellation: true, autoGainControl: true, noiseSuppression: true };
+
+const userMediaConstraints: MediaStreamConstraints = {
+  video: {
+    width: { ideal: 4096 },
+    height: { ideal: 2160 },
+  },
+  audio: true,
+};
+
 class WSHandler {
-  conn: WebSocket;
+  private conn: WebSocket;
+  private pc: RTCPeerConnection;
+  private localVideoEl: HTMLVideoElement;
+  private remoteVideoEl: HTMLVideoElement;
+  private target: string;
+  private audio: HTMLAudioElement;
+  private stream: MediaStream;
+  private dropInterval: NodeJS.Timeout;
+  private answerToCall: () => void;
+  private dropCall: (reason: EReasonDropCall) => void;
 
   private static instance: WSHandler;
 
@@ -90,15 +113,41 @@ class WSHandler {
           }
           case EReceivedDataKey.REMOVE_USER_NOTIF: {
             const name = JSONData[EReceivedDataKey.REMOVE_USER_NOTIF] as string;
+            if (this.target === name) {
+              this.handleCancelCall();
+            }
             const newActiveUsers = activeUsers.filter(user => user.name !== name);
             if (targetUser === name) {
               this.dispatch({ type: ChatActionTypes.SELECT_TARGET_USER, payload: { targetUser: null, activeUsers: newActiveUsers } });
             } else {
               this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newActiveUsers });
             }
+            break;
           }
         }
       });
+
+      switch (JSONData.type) {
+        case EReceivedDataKey.OFFER: {
+          const data = JSONData as IIncomingData;
+          this.createAnswer(data);
+          break;
+        }
+        case EReceivedDataKey.ANSWER: {
+          const data = JSONData as IIncomingData;
+          this.getAnswer(data);
+          break;
+        }
+        case EReceivedDataKey.CANDIDATE: {
+          const data = JSONData as IIncomingData;
+          this.handleAddIceCandidate(data);
+          break;
+        }
+        case EReceivedDataKey.CANCEL_CALL: {
+          this.handleCancelCall();
+          break;
+        }
+      }
     });
   };
 
@@ -123,9 +172,152 @@ class WSHandler {
     });
   };
 
-  public postMessage = (message: string) => {
-    const blob = new Blob([message], { type: 'application/json' });
-    this.conn?.send(blob);
+  private stopAudio = () => {
+    this.audio.pause();
+    this.audio.currentTime = 0;
+  };
+
+  public handeAnswerToCall = () => {
+    this.dispatch({ type: ChatActionTypes.INCOMING_CALL, payload: null });
+    this.answerToCall();
+  };
+
+  public handleDropCall = (reason?: EReasonDropCall) => {
+    this.handleCancelCall();
+    this.dropCall(reason || EReasonDropCall.CANCEL);
+    this.dispatch({ type: ChatActionTypes.INCOMING_CALL, payload: null });
+  };
+
+  public handleCancelCall = () => {
+    this.stopAudio();
+    this.pc.close();
+    this.localVideoEl.srcObject = null;
+    this.remoteVideoEl.srcObject = null;
+    this.stream?.getTracks().forEach(track => track.stop());
+    this.stopListeningRTC();
+    this.dispatch({ type: ChatActionTypes.SET_CALL_PROGRESS, payload: false });
+  };
+
+  private waitUserAction = (ms: number) => {
+    this.dispatch({ type: ChatActionTypes.INCOMING_CALL, payload: this.target });
+    return new Promise((answerToCall, dropCall) => {
+      this.answerToCall = answerToCall;
+      this.dropCall = dropCall;
+      this.dropInterval = setTimeout(() => {
+        this.handleDropCall(EReasonDropCall.TIMEOUT);
+      }, ms);
+    });
+  };
+
+  private createAnswer = async ({ data, author }: IIncomingData) => {
+    try {
+      this.audio = new Audio('assets/incCall.mp3');
+      this.audio.load();
+      this.audio.play();
+      this.target = author;
+      this.pc = new RTCPeerConnection(configuration);
+      this.startListeningRTC('answer');
+      await this.pc.setRemoteDescription(data);
+      await this.waitUserAction(10000);
+      this.stopAudio();
+      clearInterval(this.dropInterval);
+      const stream = await navigator.mediaDevices.getUserMedia(userMediaConstraints);
+      const tracks = stream.getTracks();
+      tracks.forEach(track => {
+        track.applyConstraints(trackConstraint);
+        return this.pc.addTrack(track, stream);
+      });
+      await this.pc.setLocalDescription(await this.pc.createAnswer());
+      this.postMessage({ target: this.target, data: this.pc.localDescription, type: EReceivedDataKey.ANSWER });
+      this.localVideoEl.srcObject = stream;
+      this.dispatch({ type: ChatActionTypes.SET_CALL_PROGRESS, payload: true });
+    } catch (err) {
+      if (err in EReasonDropCall) {
+        this.postMessage({ target: this.target, type: EReceivedDataKey.CANCEL_CALL });
+      }
+    }
+  };
+
+  private getAnswer = async ({ data }: IIncomingData) => {
+    try {
+      this.stopAudio();
+      await this.pc.setRemoteDescription(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  public setVideoRefs = (localVideoEl: HTMLVideoElement, remoteVideoEl: HTMLVideoElement) => {
+    this.localVideoEl = localVideoEl;
+    this.remoteVideoEl = remoteVideoEl;
+  };
+
+  private startListeningRTC = (type: TListenType) => {
+    if (type === 'offer') {
+      this.pc.addEventListener('negotiationneeded', this.handleNegotiateEndeed);
+    }
+    this.pc.addEventListener('icecandidate', this.handleSendIceCandidate);
+    this.pc.addEventListener('track', this.getRemoteTrack);
+  };
+
+  private stopListeningRTC = () => {
+    this.pc.removeEventListener('negotiationneeded', this.handleNegotiateEndeed);
+    this.pc.removeEventListener('icecandidate', this.handleSendIceCandidate);
+    this.pc.removeEventListener('track', this.getRemoteTrack);
+  };
+
+  private handleSendIceCandidate = (ev: RTCPeerConnectionIceEvent) => {
+    if (ev.candidate) {
+      this.postMessage({ target: this.target, type: EReceivedDataKey.CANDIDATE, data: ev.candidate });
+    }
+  };
+
+  private handleAddIceCandidate = async ({ data }: IIncomingData) => {
+    try {
+      await this.pc.addIceCandidate(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  private getRemoteTrack = (ev: RTCTrackEvent) => {
+    this.remoteVideoEl.srcObject = ev.streams[0];
+  };
+
+  private handleNegotiateEndeed = async () => {
+    try {
+      await this.pc.setLocalDescription(await this.pc.createOffer());
+      this.postMessage({ data: this.pc.localDescription, target: this.target, type: EReceivedDataKey.OFFER });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  public startCall = async (target: string) => {
+    try {
+      this.audio = new Audio('assets/outCall.mp3');
+      this.audio.load();
+      await this.audio.play();
+      this.target = target;
+      this.pc = new RTCPeerConnection(configuration);
+      this.startListeningRTC('offer');
+      this.stream = await navigator.mediaDevices.getUserMedia(userMediaConstraints);
+      const tracks = this.stream.getTracks();
+      tracks.forEach(track => {
+        track.applyConstraints(trackConstraint);
+        return this.pc.addTrack(track, this.stream);
+      });
+      this.localVideoEl.srcObject = this.stream;
+      this.localVideoEl.volume = 0;
+      this.dispatch({ type: ChatActionTypes.SET_CALL_PROGRESS, payload: true });
+    } catch (err) {
+      this.stopListeningRTC();
+      console.error(err);
+    }
+  };
+
+  public postMessage = (message: object) => {
+    this.conn?.send(JSON.stringify(message));
   };
 
   public closeConnection = () => {

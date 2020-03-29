@@ -10,6 +10,8 @@ const initial = {
       activeUsers: [{ name: ETarget.BROADCAST, messages: [], color: '255,255,255', isGroup: true }],
       targetUser: null,
       isOpenMenu: false,
+      caller: null,
+      callInProgress: false,
     };
   },
 };
@@ -55,6 +57,18 @@ const chatReducer = (prevState = initial.state, action: IReduxAction<any>): ICha
     }
     case ChatActionTypes.RESET_CHAT: {
       return initial.state;
+    }
+    case ChatActionTypes.INCOMING_CALL: {
+      return {
+        ...prevState,
+        caller: action.payload,
+      };
+    }
+    case ChatActionTypes.SET_CALL_PROGRESS: {
+      return {
+        ...prevState,
+        callInProgress: action.payload,
+      };
     }
     default:
       return prevState;

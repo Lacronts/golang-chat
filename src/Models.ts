@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios';
-import { EConnStatus } from 'Enums';
+import { EConnStatus, EReceivedDataKey } from 'Enums';
 
 export interface IIncomingMessages {
   from: string;
@@ -41,6 +41,8 @@ export interface IChatState {
   signInErrors: AxiosError;
   activeUsers: IUser[];
   isOpenMenu: boolean;
+  caller: string;
+  callInProgress: boolean;
 }
 
 export interface IConnectionState {
@@ -55,4 +57,11 @@ export interface IReduxAction<T> {
 export interface IAppState {
   chat: IChatState;
   connection: IConnectionState;
+}
+
+export interface IIncomingData {
+  target: string;
+  data: any;
+  type: EReceivedDataKey;
+  author: string;
 }

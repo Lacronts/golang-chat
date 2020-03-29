@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import throttle from 'lodash-es/throttle';
 import { connect } from 'react-redux';
 import { Dispatch } from 'redux';
@@ -13,12 +13,15 @@ import { Menu } from 'Components/Menu/Menu';
 import { useStyles } from './styles';
 import { TargetUser } from 'Components/TargetUser/TargetUser';
 import { MessageInput } from 'Components/MessageInput/MessageInput';
+import { CallScreen } from 'Components/CallScreen';
 
 interface IStateProps {
   targetUser: string;
   userName: string;
   activeUsers: IUser[];
   isOpenMenu: boolean;
+  caller: string;
+  callInProgress: boolean;
 }
 
 interface IDispatchProps {
@@ -27,7 +30,15 @@ interface IDispatchProps {
 
 type TProps = IStateProps & IDispatchProps;
 
-const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActions, activeUsers, targetUser, isOpenMenu }: TProps) => {
+const ChatRoomComponent: React.FunctionComponent<TProps> = ({
+  userName,
+  chatActions,
+  activeUsers,
+  targetUser,
+  isOpenMenu,
+  caller,
+  callInProgress,
+}: TProps) => {
   const [height, setScreenHeight] = useState<number>(window.innerHeight);
   const classes = useStyles();
 
@@ -47,6 +58,8 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
 
   const swipeHandlers = useSwipeable({ onSwipedLeft: handleSwipeLeft });
 
+  const getActiveUser = useCallback((activeUsers: IUser[]) => activeUsers.find(user => user.name === targetUser), [targetUser]);
+
   useEffect(() => {
     return () => chatActions.closeConnection();
   }, [chatActions]);
@@ -58,12 +71,13 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
 
   return (
     <Container {...swipeHandlers} maxWidth='lg' disableGutters style={{ height }} className={classes.container}>
+      <CallScreen chatActions={chatActions} caller={caller} callInProgress={callInProgress} />
       <Menu chatActions={chatActions} activeUsers={activeUsers} />
       <Paper className={classes.wrapper} elevation={10}>
         <Users activeUsers={activeUsers} chatActions={chatActions} targetUser={targetUser} isOpenMenu={isOpenMenu} />
         {targetUser ? (
           <div className={classes.chat}>
-            <TargetUser user={targetUser} />
+            <TargetUser user={getActiveUser(activeUsers)} chatActions={chatActions} />
             <Messages activeUsers={activeUsers} targetUser={targetUser} userName={userName} />
             <MessageInput activeUsers={activeUsers} chatActions={chatActions} targetUser={targetUser} />
           </div>
@@ -77,12 +91,14 @@ const ChatRoomComponent: React.FunctionComponent<TProps> = ({ userName, chatActi
   );
 };
 
-const mapStateToProps = ({ chat: { userName, activeUsers, targetUser, isOpenMenu } }: IAppState): IStateProps => {
+const mapStateToProps = ({ chat: { userName, activeUsers, targetUser, isOpenMenu, caller, callInProgress } }: IAppState): IStateProps => {
   return {
     targetUser,
     userName,
     activeUsers,
     isOpenMenu,
+    caller,
+    callInProgress,
   };
 };
 

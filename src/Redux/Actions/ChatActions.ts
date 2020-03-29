@@ -38,7 +38,24 @@ class ChatActions {
   openMenu = () => this.dispatch({ type: ChatActionTypes.OPEN_MENU });
 
   postMessage = (target: string, message: string, isGroup: boolean) => {
-    this.WSHandler.postMessage(JSON.stringify({ target, message, isGroup }));
+    const msg = { type: 'message', data: message, target, isGroup };
+    this.WSHandler.postMessage(msg);
+  };
+
+  setVideoRefs = (localVideoEl: HTMLVideoElement, remoteVideoEl: HTMLVideoElement) => {
+    this.WSHandler.setVideoRefs(localVideoEl, remoteVideoEl);
+  };
+
+  call = (target: string) => {
+    this.WSHandler.startCall(target);
+  };
+
+  dropCall = () => {
+    this.WSHandler.handleDropCall();
+  };
+
+  answerToCall = () => {
+    this.WSHandler.handeAnswerToCall();
   };
 
   resetChatStore = () => {

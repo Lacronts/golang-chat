@@ -16,7 +16,7 @@ const Users: React.SFC<IProps> = ({ activeUsers, targetUser, chatActions, isOpen
   const classes = useStyles({ isOpen: isOpenMenu });
   const users = sortUsersByMessageDate(activeUsers);
 
-  const selectUser = (targetUser: string) => chatActions.selectTargetUser(targetUser);
+  const selectUser = (name: string) => name !== targetUser && chatActions.selectTargetUser(name);
 
   const handleCloseUserMenu = () => chatActions.closeMenu();
 
