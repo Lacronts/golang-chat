@@ -149,39 +149,26 @@ func (s *Server) send(msg *ClientMSG) {
 			} else {
 				message.Target = msg.Target
 			}
-			outgoingMessage := createOutgoingMessage(message)
+			data := createOutgoingMessage(message)
+			msg.Data = data
+			msg.Type = "msgData"
 			if len(message.GroupName) > 0 {
 				for _, user := range s.users {
-					user.outgoingMessage <- outgoingMessage
+					user.data <- msg
 				}
 				return
 			}
 			if target, ok := s.users[msg.Target]; ok {
-				target.outgoingMessage <- outgoingMessage
+				target.data <- msg
 			}
 			if user, ok := s.users[msg.Author]; ok {
-				user.outgoingMessage <- outgoingMessage
+				user.data <- msg
 			}
 		}
 
-	case "offer":
-		{
-			s.sendData(msg)
-		}
-	case "answer":
-		{
-			s.sendData(msg)
-		}
-	case "candidate":
-		{
-			s.sendData(msg)
-		}
-	case "cancelCall":
-		{
-			s.sendData(msg)
-		}
+	default:
+		s.sendData(msg)
 	}
-
 }
 
 func (s *Server) sendData(msg *ClientMSG) {
@@ -198,42 +185,58 @@ func (s *Server) ReadIncomingData(msg *ClientMSG) {
 
 func (s *Server) notifyExistingUsersOfNew(newUser *User) {
 	log.Println("start notify existing users about new user")
-	resp := Notification{
+	notif := Notification{
 		UserID: newUser.id,
 		Color:  newUser.color,
 	}
 
 	for _, user := range s.users {
-		user.newUserCh <- &resp
+		data := &ClientMSG{
+			Target: user.id,
+			Data:   notif,
+			Type:   "newUser",
+		}
+
+		s.sendData(data)
 	}
 }
 
 func (s *Server) notifyNewUserAboutExisting(newUser *User) {
 	log.Println("start notify new users about existing")
-	resp := []Notification(nil)
+	notif := []Notification(nil)
 
 	for _, user := range s.users {
 		if user.id != newUser.id {
-			resp = append(resp, Notification{
+			notif = append(notif, Notification{
 				UserID: user.id,
 				Color:  user.color,
 			})
 		}
 	}
 
-	newUser.allUsersCh <- &resp
+	data := &ClientMSG{
+		Target: newUser.id,
+		Data:   &notif,
+		Type:   "users",
+	}
+
+	s.sendData(data)
 }
 
 func (s *Server) notifyAboutUserDeletion(remUser *User) {
-	log.Println("start notifying about removing user")
 	for _, user := range s.users {
-		user.remUserCh <- &remUser.id
+		data := &ClientMSG{
+			Data:   remUser.id,
+			Target: user.id,
+			Type:   "remUser",
+		}
+		s.sendData(data)
 	}
 }
 
-func createOutgoingMessage(msg *IncomingMSG) *ResponseMsg {
+func createOutgoingMessage(msg *IncomingMSG) *OutgoingMSG {
 	t := time.Now()
-	outgoingMsg := OutgoingMSG{
+	return &OutgoingMSG{
 		Author:    msg.Author,
 		Message:   msg.Message,
 		Time:      t.Format("2 Jan 2006 15:04"),
@@ -241,9 +244,6 @@ func createOutgoingMessage(msg *IncomingMSG) *ResponseMsg {
 		UserColor: msg.UserColor,
 		GroupName: msg.GroupName,
 		IsUnread:  true,
-	}
-	return &ResponseMsg{
-		MsgData: &outgoingMsg,
 	}
 }
 

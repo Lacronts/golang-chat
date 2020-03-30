@@ -18,7 +18,7 @@ export interface IUser {
   isGroup: boolean;
 }
 
-interface INewUser {
+export interface INewUser {
   userName: string;
   color: string;
 }

@@ -2,6 +2,7 @@ package chat
 
 import (
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -29,17 +30,27 @@ type AllUsersResp struct {
 
 //User - our user struct
 type User struct {
-	id              string
-	conn            *websocket.Conn
-	s               *Server
-	outgoingMessage chan *ResponseMsg
-	data            chan *ClientMSG
-	newUserCh       chan *Notification
-	remUserCh       chan *string
-	allUsersCh      chan *[]Notification
-	color           string
-	doneCh          chan bool
+	id     string
+	conn   *websocket.Conn
+	s      *Server
+	data   chan *ClientMSG
+	color  string
+	doneCh chan bool
 }
+
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 60 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 40 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	maxMessageSize = 512
+)
 
 //AddNewUser - method for adding a new user.
 func (s *Server) AddNewUser(u *User) {
@@ -56,32 +67,24 @@ func (u *User) Listen() {
 //ListenWrite - listener for send messages.
 func (u *User) ListenWrite() {
 	log.Println("...listening to write message")
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		u.conn.Close()
+	}()
 	for {
 		select {
-		case msg := <-u.outgoingMessage:
-			//log.Println("outgoing Message", msg)
-			u.conn.WriteJSON(&msg)
 		case data := <-u.data:
 			u.conn.WriteJSON(&data)
-		case newUser := <-u.newUserCh:
-			newUserResp := NewUserResp{
-				NewUser: newUser,
-			}
-			u.conn.WriteJSON(&newUserResp)
-		case removedUser := <-u.remUserCh:
-			remUserResp := RemUserResp{
-				RemUser: removedUser,
-			}
-			u.conn.WriteJSON(&remUserResp)
-		case allUsers := <-u.allUsersCh:
-			allUsersResp := &AllUsersResp{
-				Users: allUsers,
-			}
-			u.conn.WriteJSON(&allUsersResp)
 		case <-u.doneCh:
 			u.s.removeUser(u)
 			u.doneCh <- true
 			return
+		case <-ticker.C:
+			if err := u.conn.WriteJSON(&ClientMSG{Target: u.id, Type: "ping"}); err != nil {
+				log.Println("ticker ERR", err)
+				u.doneCh <- true
+			}
 		}
 	}
 }
@@ -117,17 +120,13 @@ func CreateUser(userID string, conn *websocket.Conn, s *Server) *User {
 		log.Fatal("server cannot be nil")
 	}
 
-	outgoingMessage := make(chan *ResponseMsg)
 	data := make(chan *ClientMSG)
 	color := GetRandomColorInRgb()
 	doneCh := make(chan bool)
-	newUserCh := make(chan *Notification)
-	remUserCh := make(chan *string)
-	allUsersCh := make(chan *[]Notification)
 	log.Printf("user %s created", userID)
 
 	return &User{
-		userID, conn, s, outgoingMessage, data, newUserCh, remUserCh, allUsersCh, color, doneCh,
+		userID, conn, s, data, color, doneCh,
 	}
 }
 

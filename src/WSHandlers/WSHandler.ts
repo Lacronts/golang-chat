@@ -1,7 +1,7 @@
 import { Dispatch } from 'redux';
 import { ChatActionTypes } from 'Redux/Actions/ChatActionTypes';
 import { ConnectionActionTypes } from 'Redux/Actions/ConnectionActionTypes';
-import { IAppState, INewUserResponse, IAllUsersResponse, IIncomingMessages, IUser, IIncomingData } from 'Models';
+import { IAppState, INewUser, IIncomingMessages, IUser, IIncomingData } from 'Models';
 import { EReceivedDataKey, EReasonDropCall } from 'Enums';
 import { API_ADDRESS_WS } from 'Redux/Services/consts';
 import { concatMessages } from 'WSHandlers/Utils';
@@ -80,59 +80,54 @@ class WSHandler {
     this.dispatch<any>((_, getState: () => IAppState) => {
       const { activeUsers, userName, targetUser } = getState().chat;
       const JSONData = JSON.parse(ev.data);
-      Object.keys(JSONData).forEach(key => {
-        switch (key) {
-          case EReceivedDataKey.ALL_USERS_NOTIF: {
-            const data = JSONData as IAllUsersResponse;
-            if (data.users) {
-              const newActiveUsers: IUser[] = data.users.map(el => ({ name: el.userName, color: el.color, isGroup: false, messages: [] }));
-              this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: [...activeUsers, ...newActiveUsers] });
-            }
-            break;
-          }
-          case EReceivedDataKey.MESSAGE: {
-            const newMessage = JSONData[EReceivedDataKey.MESSAGE] as IIncomingMessages;
-            if (newMessage.groupName) {
-              const newUsers = concatMessages(activeUsers, newMessage.groupName, newMessage, targetUser === newMessage.groupName);
-              this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newUsers });
-            } else if (userName === newMessage.from) {
-              const newUsers = concatMessages(activeUsers, targetUser, newMessage, true);
-              this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newUsers });
-            } else {
-              const newUsers = concatMessages(activeUsers, newMessage.from, newMessage, targetUser === newMessage.from);
-              this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newUsers });
-            }
-            break;
-          }
-          case EReceivedDataKey.NEW_USER_NOTIF: {
-            const data = JSONData as INewUserResponse;
-            const newUser: IUser = {
-              name: data.newUser.userName,
-              color: data.newUser.color,
-              messages: [],
-              isGroup: false,
-            };
-            const newActiveUsers = [...activeUsers, newUser];
-            this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newActiveUsers });
-            break;
-          }
-          case EReceivedDataKey.REMOVE_USER_NOTIF: {
-            const name = JSONData[EReceivedDataKey.REMOVE_USER_NOTIF] as string;
-            if (this.target === name) {
-              this.handleCancelCall();
-            }
-            const newActiveUsers = activeUsers.filter(user => user.name !== name);
-            if (targetUser === name) {
-              this.dispatch({ type: ChatActionTypes.SELECT_TARGET_USER, payload: { targetUser: null, activeUsers: newActiveUsers } });
-            } else {
-              this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newActiveUsers });
-            }
-            break;
-          }
-        }
-      });
-
       switch (JSONData.type) {
+        case EReceivedDataKey.MESSAGE_DATA: {
+          const newMessage = JSONData.data as IIncomingMessages;
+          if (newMessage.groupName) {
+            const newUsers = concatMessages(activeUsers, newMessage.groupName, newMessage, targetUser === newMessage.groupName);
+            this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newUsers });
+          } else if (userName === newMessage.from) {
+            const newUsers = concatMessages(activeUsers, targetUser, newMessage, true);
+            this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newUsers });
+          } else {
+            const newUsers = concatMessages(activeUsers, newMessage.from, newMessage, targetUser === newMessage.from);
+            this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newUsers });
+          }
+          break;
+        }
+        case EReceivedDataKey.ALL_USERS_NOTIF: {
+          const data = JSONData.data as INewUser[];
+          if (data) {
+            const newActiveUsers: IUser[] = data.map(el => ({ name: el.userName, color: el.color, isGroup: false, messages: [] }));
+            this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: [...activeUsers, ...newActiveUsers] });
+          }
+          break;
+        }
+        case EReceivedDataKey.NEW_USER_NOTIF: {
+          const data = JSONData.data as INewUser;
+          const newUser: IUser = {
+            name: data.userName,
+            color: data.color,
+            messages: [],
+            isGroup: false,
+          };
+          const newActiveUsers = [...activeUsers, newUser];
+          this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newActiveUsers });
+          break;
+        }
+        case EReceivedDataKey.REMOVE_USER_NOTIF: {
+          const name = JSONData.data as string;
+          if (this.target === name) {
+            this.handleCancelCall();
+          }
+          const newActiveUsers = activeUsers.filter(user => user.name !== name);
+          if (targetUser === name) {
+            this.dispatch({ type: ChatActionTypes.SELECT_TARGET_USER, payload: { targetUser: null, activeUsers: newActiveUsers } });
+          } else {
+            this.dispatch({ type: ChatActionTypes.UPDATE_ACTIVE_USERS, payload: newActiveUsers });
+          }
+          break;
+        }
         case EReceivedDataKey.OFFER: {
           const data = JSONData as IIncomingData;
           this.createAnswer(data);

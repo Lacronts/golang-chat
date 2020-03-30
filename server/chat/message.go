@@ -11,11 +11,6 @@ type OutgoingMSG struct {
 	IsUnread  bool   `json:"isUnread"`
 }
 
-//ResponseMsg - new message with a key, for correct processing on the client.
-type ResponseMsg struct {
-	MsgData *OutgoingMSG `json:"msgData"`
-}
-
 //IncomingMSG - incoming message.
 type IncomingMSG struct {
 	Author    string
