@@ -29,7 +29,10 @@ export const useStyles = makeStyles((theme: Theme) =>
       left: '20px',
     },
     remoteVideo: {
+      maxHeight: '100vh',
       minHeight: '100vh',
+      minWidth: '100vw',
+      maxWidth: '100vw',
     },
     callWrapper: {
       position: 'fixed',
@@ -64,6 +67,12 @@ export const useStyles = makeStyles((theme: Theme) =>
       textAlign: 'center',
       color: colors.white,
       padding: `${theme.spacing(4)}px 0`,
+    },
+    stopCall: {
+      position: 'absolute',
+      top: theme.spacing(2),
+      right: theme.spacing(2),
+      color: materialRed[700],
     },
     acceptCallIco: {
       position: 'absolute',

@@ -42,6 +42,11 @@ const CallScreen: React.SFC<IProps> = ({ chatActions, caller, callInProgress }: 
       <div className={classes.videos}>
         <video ref={localRef} className={classes.localVideo} muted />
         <video ref={remoteRef} className={classes.remoteVideo} autoPlay muted />
+        {callInProgress && (
+          <IconButton className={classes.stopCall} onClick={chatActions.dropCall}>
+            <CallEnd fontSize='large' />
+          </IconButton>
+        )}
       </div>
       {callInProgress && <div className={classes.backdrop} />}
     </>
