@@ -285,7 +285,9 @@ class WSHandler {
 
   private handleAddIceCandidate = async ({ data }: IIncomingData) => {
     try {
-      await this.pc.addIceCandidate(data);
+      if (this.pc) {
+        await this.pc.addIceCandidate(data);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -298,19 +300,29 @@ class WSHandler {
       this.remoteVideoEl.srcObject = this.remoteStream;
       this.remoteVideoEl.volume = 0;
     } else if (ev.track.kind === 'audio') {
-      const ctx = new AudioContext();
-      const audio = new Audio();
+      let ctx = new AudioContext();
+      let audio = new Audio();
+      let compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -50;
+      compressor.knee.value = 40;
+      compressor.ratio.value = 12;
+      compressor.attack.value = 0;
+      compressor.release.value = 0.25;
+
+      let filter = ctx.createBiquadFilter();
+      filter.Q.value = 8.3;
+      filter.frequency.value = 355;
+      filter.gain.value = 3.0;
+      filter.type = 'bandpass';
+      filter.connect(compressor);
+
+      compressor.connect(ctx.destination);
+      filter.connect(ctx.destination);
+
+      const src = ctx.createMediaStreamSource(ev.streams[0]);
+      src.connect(filter);
       audio.srcObject = ev.streams[0];
-      audio.volume = 0.5;
-      const gainNode = ctx.createGain();
-      gainNode.gain.value = 0.5;
-      audio.onloadedmetadata = function() {
-        const src = ctx.createMediaStreamSource(audio.srcObject as MediaStream);
-        audio.play();
-        audio.muted = true;
-        src.connect(gainNode);
-        gainNode.connect(ctx.destination);
-      };
+      audio.play();
     }
   };
 
