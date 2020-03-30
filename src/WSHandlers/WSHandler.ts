@@ -10,14 +10,17 @@ type TListenType = 'offer' | 'answer';
 
 const configuration: RTCConfiguration = { iceServers: [{ urls: 'stun:stun4.l.google.com:19302' }] };
 
-const trackConstraint: MediaTrackConstraints = { echoCancellation: true, autoGainControl: true, noiseSuppression: true };
-
 const userMediaConstraints: MediaStreamConstraints = {
-  video: {
-    width: { ideal: 4096 },
-    height: { ideal: 2160 },
+  video: true,
+  audio: {
+    echoCancellation: true,
+    autoGainControl: false,
+    noiseSuppression: false,
+    channelCount: 2,
+    latency: 100,
+    sampleRate: 44100,
+    sampleSize: 16,
   },
-  audio: true,
 };
 
 class WSHandler {
@@ -27,7 +30,8 @@ class WSHandler {
   private remoteVideoEl: HTMLVideoElement;
   private target: string;
   private audio: HTMLAudioElement;
-  private stream: MediaStream;
+  private localStream: MediaStream;
+  private remoteStream: MediaStream;
   private dropInterval: NodeJS.Timeout;
   private answerToCall: () => void;
   private dropCall: (reason: EReasonDropCall) => void;
@@ -147,6 +151,9 @@ class WSHandler {
           this.handleCancelCall();
           break;
         }
+        case 'ping': {
+          console.log('ping');
+        }
       }
     });
   };
@@ -193,7 +200,7 @@ class WSHandler {
     this.pc.close();
     this.localVideoEl.srcObject = null;
     this.remoteVideoEl.srcObject = null;
-    this.stream?.getTracks().forEach(track => track.stop());
+    this.localStream?.getTracks().forEach(track => track.stop());
     this.stopListeningRTC();
     this.dispatch({ type: ChatActionTypes.SET_CALL_PROGRESS, payload: false });
   };
@@ -213,9 +220,9 @@ class WSHandler {
     try {
       this.audio = new Audio('assets/incCall.mp3');
       this.audio.load();
-      this.audio.play();
       this.target = author;
       this.pc = new RTCPeerConnection(configuration);
+      await this.audio.play();
       this.startListeningRTC('answer');
       await this.pc.setRemoteDescription(data);
       await this.waitUserAction(10000);
@@ -223,13 +230,11 @@ class WSHandler {
       clearInterval(this.dropInterval);
       const stream = await navigator.mediaDevices.getUserMedia(userMediaConstraints);
       const tracks = stream.getTracks();
-      tracks.forEach(track => {
-        track.applyConstraints(trackConstraint);
-        return this.pc.addTrack(track, stream);
-      });
+      tracks.forEach(track => this.pc.addTrack(track, stream));
       await this.pc.setLocalDescription(await this.pc.createAnswer());
       this.postMessage({ target: this.target, data: this.pc.localDescription, type: EReceivedDataKey.ANSWER });
       this.localVideoEl.srcObject = stream;
+      await this.localVideoEl.play();
       this.dispatch({ type: ChatActionTypes.SET_CALL_PROGRESS, payload: true });
     } catch (err) {
       if (err in EReasonDropCall) {
@@ -280,8 +285,26 @@ class WSHandler {
     }
   };
 
-  private getRemoteTrack = (ev: RTCTrackEvent) => {
-    this.remoteVideoEl.srcObject = ev.streams[0];
+  private getRemoteTrack = async (ev: RTCTrackEvent) => {
+    this.remoteStream = new MediaStream();
+    if (ev.track.kind === 'video') {
+      this.remoteStream.addTrack(ev.track);
+      this.remoteVideoEl.srcObject = this.remoteStream;
+      this.remoteVideoEl.volume = 0;
+    } else if (ev.track.kind === 'audio') {
+      const ctx = new AudioContext();
+      const audio = new Audio();
+      audio.srcObject = ev.streams[0];
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 0.5;
+      audio.onloadedmetadata = function() {
+        const src = ctx.createMediaStreamSource(audio.srcObject as MediaStream);
+        audio.play();
+        audio.muted = true;
+        src.connect(gainNode);
+        gainNode.connect(ctx.destination);
+      };
+    }
   };
 
   private handleNegotiateEndeed = async () => {
@@ -301,14 +324,12 @@ class WSHandler {
       this.target = target;
       this.pc = new RTCPeerConnection(configuration);
       this.startListeningRTC('offer');
-      this.stream = await navigator.mediaDevices.getUserMedia(userMediaConstraints);
-      const tracks = this.stream.getTracks();
-      tracks.forEach(track => {
-        track.applyConstraints(trackConstraint);
-        return this.pc.addTrack(track, this.stream);
-      });
-      this.localVideoEl.srcObject = this.stream;
+      this.localStream = await navigator.mediaDevices.getUserMedia(userMediaConstraints);
+      const tracks = this.localStream.getTracks();
+      tracks.forEach(track => this.pc.addTrack(track, this.localStream));
+      this.localVideoEl.srcObject = this.localStream;
       this.localVideoEl.volume = 0;
+      await this.localVideoEl.play();
       this.dispatch({ type: ChatActionTypes.SET_CALL_PROGRESS, payload: true });
     } catch (err) {
       this.stopListeningRTC();

@@ -40,8 +40,8 @@ const CallScreen: React.SFC<IProps> = ({ chatActions, caller, callInProgress }: 
         </Paper>
       )}
       <div className={classes.videos}>
-        <video ref={localRef} className={classes.localVideo} autoPlay playsInline />
-        <video ref={remoteRef} className={classes.remoteVideo} autoPlay playsInline />
+        <video ref={localRef} className={classes.localVideo} muted />
+        <video ref={remoteRef} className={classes.remoteVideo} autoPlay muted />
       </div>
       {callInProgress && <div className={classes.backdrop} />}
     </>

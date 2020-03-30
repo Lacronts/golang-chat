@@ -23,14 +23,14 @@ const TargetUser: React.FunctionComponent<IProps> = ({ user, chatActions }: IPro
   };
 
   useEffect(() => {
-    if (user) {
+    if (user.name) {
       setShowHeader(false);
       setTimeout(() => {
         prevUser.current = user.name;
         setShowHeader(true);
       }, TRANSITION_DURATION);
     }
-  }, [user]);
+  }, [user.name]);
 
   return (
     <div className={classes.selectedUserWrapper}>
