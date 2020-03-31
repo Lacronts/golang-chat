@@ -15,8 +15,7 @@
     "react-swipeable": "^5.5.1",
     "redux": "4.0.5",
     "redux-thunk": "2.3.0",
-    "simplebar-react": "^2.1.0",
-    "webrtc-adapter": "^7.5.1"
+    "simplebar-react": "^2.1.0"
   },
   "scripts": {
     "start": "react-scripts start --no-cache",

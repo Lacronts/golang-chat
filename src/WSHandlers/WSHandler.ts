@@ -10,16 +10,15 @@ type TListenType = 'offer' | 'answer';
 
 const configuration: RTCConfiguration = { iceServers: [{ urls: 'stun:stun4.l.google.com:19302' }] };
 
-const userMediaConstraints: MediaStreamConstraints = {
+const userMediaConstraints: any = {
   video: true,
   audio: {
-    echoCancellation: true,
-    autoGainControl: false,
-    noiseSuppression: false,
-    channelCount: 2,
-    latency: 0,
-    sampleRate: 44100,
-    sampleSize: 16,
+    mandatory: {
+      googEchoCancellation: true,
+      googNoiseSuppression: true,
+      googHighpassFilter: true,
+      googTypingNoiseDetection: true,
+    },
   },
 };
 
@@ -238,7 +237,10 @@ class WSHandler {
       tracks.forEach(track => this.pc.addTrack(track, this.localStream));
       await this.pc.setLocalDescription(await this.pc.createAnswer());
       this.postMessage({ target: this.target, data: this.pc.localDescription, type: EReceivedDataKey.ANSWER });
-      this.localVideoEl.srcObject = this.localStream;
+      const localStream = new MediaStream();
+      const localVideTrack = this.localStream.getVideoTracks()[0];
+      localStream.addTrack(localVideTrack);
+      this.localVideoEl.srcObject = localStream;
       await this.localVideoEl.play();
       this.dispatch({ type: ChatActionTypes.SET_CALL_PROGRESS, payload: true });
     } catch (err) {
@@ -294,41 +296,15 @@ class WSHandler {
   };
 
   private getRemoteTrack = async (ev: RTCTrackEvent) => {
-    this.remoteStream = new MediaStream();
-    if (ev.track.kind === 'video') {
-      this.remoteStream.addTrack(ev.track);
-      this.remoteVideoEl.srcObject = this.remoteStream;
-      this.remoteVideoEl.volume = 0;
-    } else if (ev.track.kind === 'audio') {
-      let ctx = new AudioContext();
-      let audio = new Audio();
-      let compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.value = -50;
-      compressor.knee.value = 40;
-      compressor.ratio.value = 12;
-      compressor.attack.value = 0;
-      compressor.release.value = 0.25;
-
-      let filter = ctx.createBiquadFilter();
-      filter.Q.value = 8.3;
-      filter.frequency.value = 355;
-      filter.gain.value = 3.0;
-      filter.type = 'bandpass';
-      filter.connect(compressor);
-
-      compressor.connect(ctx.destination);
-      filter.connect(ctx.destination);
-
-      const src = ctx.createMediaStreamSource(ev.streams[0]);
-      src.connect(filter);
-      audio.srcObject = ev.streams[0];
-      audio.play();
+    if (this.remoteVideoEl.srcObject !== ev.streams[0]) {
+      this.remoteVideoEl.volume = 0.9;
+      this.remoteVideoEl.srcObject = ev.streams[0];
     }
   };
 
   private handleNegotiateEndeed = async () => {
     try {
-      await this.pc.setLocalDescription(await this.pc.createOffer());
+      await this.pc.setLocalDescription(await this.pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true }));
       this.postMessage({ data: this.pc.localDescription, target: this.target, type: EReceivedDataKey.OFFER });
     } catch (err) {
       console.error(err);
