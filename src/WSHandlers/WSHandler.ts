@@ -8,19 +8,12 @@ import { concatMessages } from 'WSHandlers/Utils';
 
 type TListenType = 'offer' | 'answer';
 
-const configuration: RTCConfiguration = { iceServers: [{ urls: 'stun:stun4.l.google.com:19302' }] };
+enum ECamMode {
+  FRONT = 'user',
+  BACK = 'environment',
+}
 
-const userMediaConstraints: any = {
-  video: true,
-  audio: {
-    mandatory: {
-      googEchoCancellation: true,
-      googNoiseSuppression: true,
-      googHighpassFilter: true,
-      googTypingNoiseDetection: true,
-    },
-  },
-};
+const configuration: RTCConfiguration = { iceServers: [{ urls: 'stun:stun4.l.google.com:19302' }] };
 
 class WSHandler {
   private conn: WebSocket;
@@ -35,6 +28,18 @@ class WSHandler {
   private dropInterval: NodeJS.Timeout;
   private answerToCall: () => void;
   private dropCall: (reason: EReasonDropCall) => void;
+  private userMediaConstraints: any = {
+    video: {
+      facingMode: ECamMode.FRONT,
+    },
+    audio: {
+      mandatory: {
+        googEchoCancellation: true,
+        googNoiseSuppression: true,
+        googHighpassFilter: true,
+      },
+    },
+  };
 
   private static instance: WSHandler;
 
@@ -232,16 +237,11 @@ class WSHandler {
       await this.waitUserAction(10000);
       this.stopAudio();
       clearInterval(this.dropInterval);
-      this.localStream = await navigator.mediaDevices.getUserMedia(userMediaConstraints);
-      const tracks = this.localStream.getTracks();
-      tracks.forEach(track => this.pc.addTrack(track, this.localStream));
-      await this.pc.setLocalDescription(await this.pc.createAnswer());
+      await this.startLocalStream();
+      await this.pc.setLocalDescription(
+        await this.pc.createAnswer({ offerToReceiveVideo: true, offerToReceiveAudio: true, voiceActivityDetection: true }),
+      );
       this.postMessage({ target: this.target, data: this.pc.localDescription, type: EReceivedDataKey.ANSWER });
-      const localStream = new MediaStream();
-      const localVideTrack = this.localStream.getVideoTracks()[0];
-      localStream.addTrack(localVideTrack);
-      this.localVideoEl.srcObject = localStream;
-      await this.localVideoEl.play();
       this.dispatch({ type: ChatActionTypes.SET_CALL_PROGRESS, payload: true });
     } catch (err) {
       if (err in EReasonDropCall) {
@@ -303,11 +303,53 @@ class WSHandler {
   };
 
   private handleNegotiateEndeed = async () => {
+    if (this.pc.connectionState !== 'connected') {
+      try {
+        await this.pc.setLocalDescription(
+          await this.pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true, voiceActivityDetection: true }),
+        );
+        this.postMessage({ data: this.pc.localDescription, target: this.target, type: EReceivedDataKey.OFFER });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  private startLocalStream = async () => {
     try {
-      await this.pc.setLocalDescription(await this.pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true }));
-      this.postMessage({ data: this.pc.localDescription, target: this.target, type: EReceivedDataKey.OFFER });
+      this.localStream = await navigator.mediaDevices.getUserMedia(this.userMediaConstraints);
+      const tracks = this.localStream.getTracks();
+      tracks.forEach(track => this.pc.addTrack(track, this.localStream));
+      const localVideoStream = new MediaStream();
+      const localVideTrack = this.localStream.getVideoTracks()[0];
+      localVideoStream.addTrack(localVideTrack);
+      this.localVideoEl.srcObject = localVideoStream;
+      this.localVideoEl.volume = 0;
+      await this.localVideoEl.play();
     } catch (err) {
-      console.error(err);
+      console.error('local stream error:', err);
+    }
+  };
+
+  public swapLocalCamera = async () => {
+    try {
+      this.localStream.getTracks().forEach(track => track.stop());
+      if (this.userMediaConstraints.video.facingMode === ECamMode.FRONT) {
+        this.userMediaConstraints.video.facingMode = ECamMode.BACK;
+      } else {
+        this.userMediaConstraints.video.facingMode = ECamMode.FRONT;
+      }
+      this.localStream = await navigator.mediaDevices.getUserMedia(this.userMediaConstraints);
+      const tracks = this.localStream.getTracks();
+      tracks.forEach(async track => {
+        const senders = this.pc.getSenders();
+        const curSender = senders.find(s => s.track.kind === track.kind);
+        await curSender.replaceTrack(track);
+      });
+      this.localVideoEl.srcObject = this.localStream;
+      await this.localVideoEl.play();
+    } catch (err) {
+      console.error('swapr cams error:', err);
     }
   };
 
@@ -316,13 +358,8 @@ class WSHandler {
       await this.outCallAudio.play();
       this.target = target;
       this.pc = new RTCPeerConnection(configuration);
+      this.startLocalStream();
       this.startListeningRTC('offer');
-      this.localStream = await navigator.mediaDevices.getUserMedia(userMediaConstraints);
-      const tracks = this.localStream.getTracks();
-      tracks.forEach(track => this.pc.addTrack(track, this.localStream));
-      this.localVideoEl.srcObject = this.localStream;
-      this.localVideoEl.volume = 0;
-      await this.localVideoEl.play();
     } catch (err) {
       this.stopListeningRTC();
       console.error(err);

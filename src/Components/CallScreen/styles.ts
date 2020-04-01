@@ -44,6 +44,12 @@ export const useStyles = makeStyles((theme: Theme) =>
       background: 'inherit',
       zIndex: 6,
     },
+    flipIco: {
+      position: 'absolute',
+      color: colors.active,
+      top: theme.spacing(2),
+      left: theme.spacing(2),
+    },
     callInnerWrapper: {
       position: 'relative',
       width: '100%',

@@ -2,9 +2,10 @@ import React, { useRef, useEffect } from 'react';
 import Paper from '@material-ui/core/Paper';
 import PhoneCallback from '@material-ui/icons/PhoneCallback';
 import CallEnd from '@material-ui/icons/CallEnd';
+import IconButton from '@material-ui/core/IconButton';
+import FlipCamera from '@material-ui/icons/FlipCameraAndroid';
 import { ChatActions } from 'Redux/Actions/ChatActions';
 import { useStyles } from './styles';
-import IconButton from '@material-ui/core/IconButton';
 
 interface IProps {
   chatActions: ChatActions;
@@ -16,6 +17,7 @@ const CallScreen: React.SFC<IProps> = ({ chatActions, caller, callInProgress }: 
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const classes = useStyles({ isVisible: callInProgress });
+  const hasBackCam = navigator.mediaDevices?.getSupportedConstraints()?.facingMode;
 
   useEffect(() => {
     const localVideoEl = localRef.current;
@@ -42,6 +44,11 @@ const CallScreen: React.SFC<IProps> = ({ chatActions, caller, callInProgress }: 
       <div className={classes.videos}>
         <video ref={localRef} className={classes.localVideo} muted playsInline />
         <video ref={remoteRef} className={classes.remoteVideo} autoPlay playsInline />
+        {hasBackCam && (
+          <IconButton className={classes.flipIco} onClick={chatActions.swapCams}>
+            <FlipCamera />
+          </IconButton>
+        )}
         {callInProgress && (
           <IconButton className={classes.stopCall} onClick={chatActions.dropCall}>
             <CallEnd fontSize='large' />

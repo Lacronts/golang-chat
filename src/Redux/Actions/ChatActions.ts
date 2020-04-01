@@ -67,6 +67,10 @@ class ChatActions {
     this.dispatch({ type: ConnectionActionTypes.CLOSE_CONNECTION });
     this.WSHandler.closeConnection();
   };
+
+  swapCams = () => {
+    this.WSHandler.swapLocalCamera();
+  };
 }
 
 export { ChatActions };
