@@ -11,28 +11,30 @@ interface IUseStyles {
 
 export const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    videos: {
-      display: ({ isVisible }: IUseStyles) => (isVisible ? 'block' : 'none'),
+    wrapper: {
       position: 'fixed',
+      display: ({ isVisible }: IUseStyles) => (isVisible ? 'flex' : 'none'),
+      flexDirection: 'column',
       top: 0,
       bottom: 0,
-      left: '50%',
-      transform: 'translateX(-50%)',
-      minHeight: '100vh',
+      left: 0,
+      right: 0,
       zIndex: 5,
+    },
+    videos: {
+      flexGrow: 1,
+      display: 'flex',
+      flexDirection: 'column',
     },
     localVideo: {
       position: 'absolute',
-      width: '320px',
-      height: '180px',
-      bottom: '20px',
-      left: '20px',
+      width: 'auto',
+      height: '160px',
+      borderRadius: theme.spacing(3),
+      zIndex: 1,
     },
     remoteVideo: {
-      maxHeight: '100vh',
-      minHeight: '100vh',
-      minWidth: '100vw',
-      maxWidth: '100vw',
+      flexGrow: 1,
     },
     callWrapper: {
       position: 'fixed',
@@ -43,12 +45,6 @@ export const useStyles = makeStyles((theme: Theme) =>
       transform: 'translate(-150px, -200px)',
       background: 'inherit',
       zIndex: 6,
-    },
-    flipIco: {
-      position: 'absolute',
-      color: colors.active,
-      top: theme.spacing(2),
-      left: theme.spacing(2),
     },
     callInnerWrapper: {
       position: 'relative',
@@ -74,11 +70,23 @@ export const useStyles = makeStyles((theme: Theme) =>
       color: colors.white,
       padding: `${theme.spacing(4)}px 0`,
     },
+    flipIco: {
+      color: colors.active,
+    },
     stopCall: {
-      position: 'absolute',
-      top: theme.spacing(2),
-      right: theme.spacing(2),
       color: materialRed[700],
+    },
+    controlsWrapper: {
+      width: '100vw',
+      flexBasis: '60px',
+      background: colors.background.main,
+      borderTop: `2px solid ${colors.active}`,
+    },
+    controls: {
+      display: 'flex',
+      justifyContent: 'space-around',
+      margin: '0 auto',
+      maxWidth: '640px',
     },
     acceptCallIco: {
       position: 'absolute',

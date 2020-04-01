@@ -5,6 +5,7 @@ import { IAppState, INewUser, IIncomingMessages, IUser, IIncomingData } from 'Mo
 import { EReceivedDataKey, EReasonDropCall } from 'Enums';
 import { API_ADDRESS_WS } from 'Redux/Services/consts';
 import { concatMessages } from 'WSHandlers/Utils';
+import { getUserMedia } from 'Utils';
 
 type TListenType = 'offer' | 'answer';
 
@@ -24,7 +25,6 @@ class WSHandler {
   private outCallAudio: HTMLAudioElement = new Audio('assets/outCall.mp3');
   private incCallAudio: HTMLAudioElement = new Audio('assets/incCall.mp3');
   private localStream: MediaStream;
-  private remoteStream: MediaStream;
   private dropInterval: NodeJS.Timeout;
   private answerToCall: () => void;
   private dropCall: (reason: EReasonDropCall) => void;
@@ -317,7 +317,7 @@ class WSHandler {
 
   private startLocalStream = async () => {
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia(this.userMediaConstraints);
+      this.localStream = await getUserMedia(this.userMediaConstraints);
       const tracks = this.localStream.getTracks();
       tracks.forEach(track => this.pc.addTrack(track, this.localStream));
       const localVideoStream = new MediaStream();
@@ -339,7 +339,7 @@ class WSHandler {
       } else {
         this.userMediaConstraints.video.facingMode = ECamMode.FRONT;
       }
-      this.localStream = await navigator.mediaDevices.getUserMedia(this.userMediaConstraints);
+      this.localStream = await getUserMedia(this.userMediaConstraints);
       const tracks = this.localStream.getTracks();
       tracks.forEach(async track => {
         const senders = this.pc.getSenders();
@@ -349,7 +349,7 @@ class WSHandler {
       this.localVideoEl.srcObject = this.localStream;
       await this.localVideoEl.play();
     } catch (err) {
-      console.error('swapr cams error:', err);
+      console.error('swap cams error:', err);
     }
   };
 

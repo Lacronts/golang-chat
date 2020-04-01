@@ -32,3 +32,18 @@ export const toggleScrollBar = (flag: boolean) => {
     flag ? (scrollBar.style.opacity = '1') : (scrollBar.style.opacity = '0');
   }
 };
+
+export const getUserMedia = (constraints: MediaStreamConstraints): Promise<MediaStream> => {
+  if (navigator?.mediaDevices?.getUserMedia) {
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }
+  return Promise.reject('your browser is not supported getUserMedia');
+};
+
+export const getVideoDevices = async () => {
+  if (navigator?.mediaDevices?.enumerateDevices) {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter(d => d.kind === 'videoinput');
+  }
+  return Promise.reject('your browser is not supported enumerateDevices');
+};
