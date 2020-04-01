@@ -1,7 +1,3 @@
-## Available Scripts
-
-In the project directory, you can run:
-
 To run the application, do the following
 
 ### `HTTPS=true yarn start`
